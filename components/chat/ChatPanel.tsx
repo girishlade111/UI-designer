@@ -9,7 +9,7 @@ import { Settings, Square, Play, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function ChatPanel() {
-  const { apiKey, chatHistory, addChatMessage, setIsSettingsOpen, currentGeneratedCode, setCurrentGeneratedCode } = useAppStore();
+  const { apiKey, chatHistory, addChatMessage, setIsSettingsOpen, currentGeneratedCode } = useAppStore();
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const isDisabled = !apiKey;
