@@ -4,7 +4,6 @@ import { useState, useRef, useCallback, type KeyboardEvent } from "react";
 import { Send, ImagePlus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
 
 interface ChatInputProps {
   onSend: (message: string) => void;
