@@ -50,7 +50,7 @@ export function ChatPanel() {
               </p>
               {!isDisabled && (
                 <p className="text-xs text-muted-foreground">
-                  Try: "Create a login form with email and password fields"
+                  Try: &ldquo;Create a login form with email and password fields&rdquo;
                 </p>
               )}
             </div>
