@@ -7,7 +7,6 @@ import { ChatInput } from "./ChatInput";
 import { useAppStore } from "@/store/useAppStore";
 import { Settings, Square, Play, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 export function ChatPanel() {
   const { apiKey, chatHistory, addChatMessage, setIsSettingsOpen, currentGeneratedCode, setCurrentGeneratedCode } = useAppStore();
