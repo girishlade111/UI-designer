@@ -29,7 +29,7 @@ export default function Home() {
     <div className="h-screen flex flex-col overflow-hidden">
       <Navbar />
       <ResizablePanel
-        leftPanel={<LeftPanel />}
+        leftPanel={<ChatPanel />}
         rightPanel={<RightPanel />}
         defaultLeftWidth={30}
         minLeftWidth={300}
