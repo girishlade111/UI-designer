@@ -87,13 +87,19 @@ export function ChatPanel() {
   const handleSubmitWithImage = async (imageDataUrl?: string) => {
     if (!input.trim() && !imageDataUrl) return;
 
+    let userText = input.trim();
+
+    if (currentGeneratedCode && !imageDataUrl) {
+      userText = `[Current Code State:\n${currentGeneratedCode}]\n\nModify this code based on the user's request: ${userText}`;
+    }
+
     const content: Array<{ type: string; text?: string; image?: string }> = [];
 
     if (imageDataUrl) {
       content.push({ type: "image", image: imageDataUrl });
     }
-    if (input.trim()) {
-      content.push({ type: "text", text: input });
+    if (userText) {
+      content.push({ type: "text", text: userText });
     }
 
     await append({
