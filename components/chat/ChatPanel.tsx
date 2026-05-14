@@ -33,6 +33,7 @@ export function ChatPanel() {
 
   const submitFn = handleSubmit ?? (() => {});
   const inputChangeFn = handleInputChange ?? (() => {});
+  const chatInput = input ?? "";
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -89,7 +90,7 @@ export function ChatPanel() {
 
       <div className="p-4 border-t border-border">
         <ChatInput
-          input={input}
+          input={chatInput}
           onInputChange={inputChangeFn}
           onSubmit={submitFn}
           disabled={isDisabled}
