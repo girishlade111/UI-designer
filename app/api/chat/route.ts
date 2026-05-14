@@ -5,6 +5,11 @@ export const dynamic = "force-dynamic";
 
 const systemPrompt = `You are an expert UI developer. Your goal is to create modern, accessible React components using Tailwind CSS and shadcn/ui.
 
+When the user provides an image:
+- Analyze the wireframe/mockup image carefully
+- Ask clarifying questions if the layout or details are unclear
+- Generate code based on what you see in the image
+
 When the user's request is clear and complete:
 - Use the generateReactComponent tool to output the code
 
@@ -46,6 +51,28 @@ const tools = {
   },
 };
 
+function transformMessageContent(content: string | Array<{ type: string; text?: string; image?: string }>) {
+  if (typeof content === "string") {
+    return content;
+  }
+
+  if (Array.isArray(content)) {
+    const parts: Array<{ type: string; text?: string; image_url?: { url: string } }> = [];
+    
+    content.forEach((part) => {
+      if (part.type === "text" && part.text) {
+        parts.push({ type: "text", text: part.text });
+      } else if (part.type === "image" && part.image) {
+        parts.push({ type: "image_url", image_url: { url: part.image } });
+      }
+    });
+    
+    return parts;
+  }
+  
+  return content;
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -65,11 +92,16 @@ export async function POST(request: Request) {
       );
     }
 
+    const transformedMessages = messages.map((msg: { role: string; content: string | Array<{ type: string; text?: string; image?: string }> }) => ({
+      ...msg,
+      content: transformMessageContent(msg.content),
+    }));
+
     const model = openai("gpt-4o", { apiKey });
 
     const result = streamText({
       model,
-      messages,
+      messages: transformedMessages,
       system: systemPrompt,
       tools,
     });
