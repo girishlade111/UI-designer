@@ -1,11 +1,17 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import prettier from "prettier/standalone";
+import babelPlugin from "prettier/plugins/babel";
+import estreePlugin from "prettier/plugins/estree";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAppStore } from "@/store/useAppStore";
-import { Copy, Check, Undo2, Redo2 } from "lucide-react";
+import { Copy, Check, Undo2, Redo2, Download, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { Skeleton } from "@/components/ui/skeleton";
 
 function generatePreviewHTML(code: string): string {
   const escapedCode = code.replace(/<\/script>/gi, '<\\/script>');
@@ -47,14 +53,42 @@ function generatePreviewHTML(code: string): string {
 export function CanvasPanel() {
   const { currentGeneratedCode, undoCode, redoCode, historyIndex, codeHistory } = useAppStore();
   const [copied, setCopied] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const canUndo = historyIndex > 0;
   const canRedo = historyIndex < codeHistory.length - 1;
 
+  const formattedCode = useMemo(() => {
+    if (!currentGeneratedCode) return "";
+    try {
+      return prettier.format(currentGeneratedCode, {
+        parser: "babel-ts",
+        plugins: [babelPlugin, estreePlugin],
+        semi: true,
+        singleQuote: true,
+        tabWidth: 2,
+      });
+    } catch {
+      return currentGeneratedCode;
+    }
+  }, [currentGeneratedCode]);
+
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(currentGeneratedCode);
+    await navigator.clipboard.writeText(formattedCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleDownload = () => {
+    const blob = new Blob([formattedCode], { type: "text/typescript" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "Component.tsx";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const previewHTML = useMemo(() => {
@@ -99,7 +133,15 @@ export function CanvasPanel() {
         </div>
 
         <TabsContent value="preview" className="flex-1 m-0 p-4 min-h-0">
-          <div className="h-full bg-white rounded-lg border border-border overflow-hidden">
+          <div className="h-full bg-white rounded-lg border border-border overflow-hidden relative">
+            {isGenerating && (
+              <div className="absolute inset-0 flex items-center justify-center bg-background/80 z-10">
+                <div className="flex flex-col items-center gap-2">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <span className="text-sm text-muted-foreground">Generating...</span>
+                </div>
+              </div>
+            )}
             {currentGeneratedCode ? (
               <iframe
                 srcDoc={previewHTML}
@@ -116,12 +158,12 @@ export function CanvasPanel() {
         </TabsContent>
 
         <TabsContent value="code" className="flex-1 m-0 min-h-0 relative">
-          <div className="absolute top-2 right-2 z-10">
+          <div className="absolute top-2 right-2 z-10 flex gap-2">
             <Button
               variant="outline"
               size="sm"
               onClick={handleCopy}
-              disabled={!currentGeneratedCode}
+              disabled={!formattedCode}
             >
               {copied ? (
                 <Check className="h-4 w-4 mr-2" />
@@ -130,11 +172,41 @@ export function CanvasPanel() {
               )}
               {copied ? "Copied" : "Copy"}
             </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleDownload}
+              disabled={!formattedCode}
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Download
+            </Button>
           </div>
           <ScrollArea className="h-full">
-            <pre className="p-4 text-sm font-mono bg-zinc-950 text-zinc-100 min-h-full">
-              {currentGeneratedCode || "// Generated code will appear here"}
-            </pre>
+            {formattedCode ? (
+              <SyntaxHighlighter
+                language="tsx"
+                style={vscDarkPlus}
+                customStyle={{
+                  margin: 0,
+                  padding: "1rem",
+                  fontSize: "0.875rem",
+                  background: "#1e1e1e",
+                  minHeight: "100%",
+                }}
+                showLineNumbers
+              >
+                {formattedCode}
+              </SyntaxHighlighter>
+            ) : (
+              <div className="p-4 space-y-3">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-5/6" />
+                <Skeleton className="h-4 w-4/6" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-3/6" />
+              </div>
+            )}
           </ScrollArea>
         </TabsContent>
       </Tabs>
