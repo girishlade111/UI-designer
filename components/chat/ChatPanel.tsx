@@ -6,7 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
 import { useAppStore } from "@/store/useAppStore";
-import { Settings, Square, Play, Download, Loader2 } from "lucide-react";
+import { Settings, Square, Play, Download, Loader2, Sparkles, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function ChatPanel() {
@@ -15,25 +15,12 @@ export function ChatPanel() {
 
   const isDisabled = !apiKey;
 
-  const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
+  const { messages, input, handleInputChange, handleSubmit, isLoading, addToolResult } = useChat({
     api: "/api/chat",
     body: { apiKey },
     headers: { "Content-Type": "application/json" },
-    onFinish: (message) => {
-      if (message.role === "assistant") {
-        const codeMatch = message.content.match(/```tsx\s*([\s\S]*?)\s*```/);
-        const code = codeMatch ? codeMatch[1].trim() : message.content.trim();
-        if (code.length > 0 && (code.includes("export") || code.includes("function") || code.includes("return"))) {
-          setCurrentGeneratedCode(code);
-        }
-      }
-    },
     enabled: !!apiKey,
   });
-
-  const submitFn = handleSubmit ?? (() => {});
-  const inputChangeFn = handleInputChange ?? (() => {});
-  const chatInput = input ?? "";
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -41,7 +28,40 @@ export function ChatPanel() {
     }
   }, [messages]);
 
+  useEffect(() => {
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage?.role === "assistant" && lastMessage.toolCalls && lastMessage.toolCalls.length > 0) {
+      lastMessage.toolCalls.forEach((toolCall) => {
+        const { name, args } = toolCall;
+        const parsedArgs = typeof args === "string" ? JSON.parse(args) : args;
+
+        if (name === "askClarificationQuestion") {
+          const question = parsedArgs.question;
+          setTimeout(() => {
+            addToolResult({
+              toolCallId: toolCall.id,
+              result: { question },
+            });
+          }, 100);
+        } else if (name === "generateReactComponent") {
+          const code = parsedArgs.code;
+          setCurrentGeneratedCode(code);
+          setTimeout(() => {
+            addToolResult({
+              toolCallId: toolCall.id,
+              result: { success: true, message: "UI Updated!" },
+            });
+          }, 100);
+        }
+      });
+    }
+  }, [messages, addToolResult, setCurrentGeneratedCode]);
+
   const hasCode = currentGeneratedCode.length > 0;
+
+  const submitFn = handleSubmit ?? (() => {});
+  const inputChangeFn = handleInputChange ?? (() => {});
+  const chatInput = input ?? "";
 
   return (
     <div className="h-full flex flex-col">
@@ -72,7 +92,12 @@ export function ChatPanel() {
             </div>
           ) : (
             messages.map((msg) => (
-              <ChatMessage key={msg.id} role={msg.role as "user" | "assistant"} content={msg.content} />
+              <ChatMessage
+                key={msg.id}
+                role={msg.role as "user" | "assistant"}
+                content={msg.content}
+                toolInvocations={msg.toolInvocations}
+              />
             ))
           )}
           {isLoading && (
