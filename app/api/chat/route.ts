@@ -1,7 +1,50 @@
 import { openai } from "@ai-sdk/openai";
-import { generateText } from "ai";
+import { streamText } from "ai";
 
 export const dynamic = "force-dynamic";
+
+const systemPrompt = `You are an expert UI developer. Your goal is to create modern, accessible React components using Tailwind CSS and shadcn/ui.
+
+When the user's request is clear and complete:
+- Use the generateReactComponent tool to output the code
+
+When the user's request is too vague or lacks details about:
+- Layout structure
+- Color scheme or styling preferences
+- Component functionality
+- Specific elements or sections
+- Use the askClarificationQuestion tool to ask clarifying questions
+
+Always ask clarifying questions if the requirements are unclear. Only generate code when you have enough information.`;
+
+const tools = {
+  askClarificationQuestion: {
+    description: "Use this if the user's prompt is too vague or lacks layout/color details.",
+    parameters: {
+      type: "object",
+      properties: {
+        question: {
+          type: "string",
+          description: "The clarifying question to ask the user",
+        },
+      },
+      required: ["question"],
+    },
+  },
+  generateReactComponent: {
+    description: "Use this when the requirements are clear to generate the final code.",
+    parameters: {
+      type: "object",
+      properties: {
+        code: {
+          type: "string",
+          description: "The complete React component code with Tailwind CSS",
+        },
+      },
+      required: ["code"],
+    },
+  },
+};
 
 export async function POST(request: Request) {
   try {
@@ -22,21 +65,16 @@ export async function POST(request: Request) {
       );
     }
 
-    const systemPrompt = {
-      role: "system",
-      content: `You are an expert UI developer. Generate modern, accessible React components using Tailwind CSS and shadcn/ui. Always wrap your code output in \`\`\`tsx ... \`\`\` markdown blocks. Respond with ONLY the code block, no additional text or explanations.`,
-    };
-
-    const messagesWithSystem = [systemPrompt, ...messages];
-
     const model = openai("gpt-4o", { apiKey });
 
-    const { text } = await generateText({
+    const result = streamText({
       model,
-      messages: messagesWithSystem,
+      messages,
+      system: systemPrompt,
+      tools,
     });
 
-    return Response.json({ text });
+    return result.toDataStreamResponse();
   } catch (error) {
     console.error("Chat API error:", error);
     return Response.json(
