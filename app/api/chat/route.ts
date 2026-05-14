@@ -22,11 +22,18 @@ export async function POST(request: Request) {
       );
     }
 
+    const systemPrompt = {
+      role: "system",
+      content: `You are an expert UI developer. Generate modern, accessible React components using Tailwind CSS and shadcn/ui. Always wrap your code output in \`\`\`tsx ... \`\`\` markdown blocks. Respond with ONLY the code block, no additional text or explanations.`,
+    };
+
+    const messagesWithSystem = [systemPrompt, ...messages];
+
     const model = openai("gpt-4o", { apiKey });
 
     const { text } = await generateText({
       model,
-      messages,
+      messages: messagesWithSystem,
     });
 
     return Response.json({ text });
