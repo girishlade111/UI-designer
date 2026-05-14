@@ -34,7 +34,8 @@ export function ChatPanel() {
     headers: { "Content-Type": "application/json" },
     onFinish: (message) => {
       if (message.role === "assistant") {
-        setCurrentGeneratedCode(message.content);
+        const code = extractCodeBlock(message.content);
+        setCurrentGeneratedCode(code);
       }
     },
     enabled: !!apiKey,
