@@ -63,7 +63,7 @@ export function ChatInput({ input, onInputChange, onSubmit, disabled, isLoading 
           size="icon"
           variant="ghost"
           className="absolute right-1 bottom-1 h-8 w-8 text-muted-foreground hover:text-foreground"
-          disabled={disabled || !input.trim() || isLoading}
+          disabled={disabled || !(input ?? "").trim() || isLoading}
           onClick={handleSend}
         >
           {isLoading ? (
