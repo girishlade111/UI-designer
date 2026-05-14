@@ -9,9 +9,33 @@ import { useAppStore } from "@/store/useAppStore";
 import { Settings, Square, Play, Download, Loader2, Sparkles, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+const tools = {
+  askClarificationQuestion: {
+    description: "Use this if the user's prompt is too vague or lacks layout/color details.",
+    parameters: {
+      type: "object",
+      properties: {
+        question: { type: "string" },
+      },
+      required: ["question"],
+    },
+  },
+  generateReactComponent: {
+    description: "Use this when the requirements are clear to generate the final code.",
+    parameters: {
+      type: "object",
+      properties: {
+        code: { type: "string" },
+      },
+      required: ["code"],
+    },
+  },
+};
+
 export function ChatPanel() {
   const { apiKey, setIsSettingsOpen, currentGeneratedCode, setCurrentGeneratedCode } = useAppStore();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const processedToolCalls = useRef<Set<string>>(new Set());
 
   const isDisabled = !apiKey;
 
@@ -19,6 +43,7 @@ export function ChatPanel() {
     api: "/api/chat",
     body: { apiKey },
     headers: { "Content-Type": "application/json" },
+    tools,
     enabled: !!apiKey,
   });
 
@@ -30,31 +55,33 @@ export function ChatPanel() {
 
   useEffect(() => {
     const lastMessage = messages[messages.length - 1];
-    if (lastMessage?.role === "assistant" && lastMessage.toolCalls && lastMessage.toolCalls.length > 0) {
-      lastMessage.toolCalls.forEach((toolCall) => {
-        const { name, args } = toolCall;
-        const parsedArgs = typeof args === "string" ? JSON.parse(args) : args;
+    if (!lastMessage || lastMessage.role !== "assistant") return;
+    
+    const toolInvocations = lastMessage.toolInvocations;
+    if (!toolInvocations || toolInvocations.length === 0) return;
 
-        if (name === "askClarificationQuestion") {
-          const question = parsedArgs.question;
-          setTimeout(() => {
-            addToolResult({
-              toolCallId: toolCall.id,
-              result: { question },
-            });
-          }, 100);
-        } else if (name === "generateReactComponent") {
-          const code = parsedArgs.code;
-          setCurrentGeneratedCode(code);
-          setTimeout(() => {
-            addToolResult({
-              toolCallId: toolCall.id,
-              result: { success: true, message: "UI Updated!" },
-            });
-          }, 100);
-        }
-      });
-    }
+    toolInvocations.forEach((invocation) => {
+      if (processedToolCalls.current.has(invocation.toolCallId)) return;
+      processedToolCalls.current.add(invocation.toolCallId);
+
+      const { toolName, args } = invocation;
+      const parsedArgs = typeof args === "string" ? JSON.parse(args) : args;
+
+      if (toolName === "askClarificationQuestion") {
+        const question = parsedArgs.question as string;
+        addToolResult({
+          toolCallId: invocation.toolCallId,
+          result: { question },
+        });
+      } else if (toolName === "generateReactComponent") {
+        const code = parsedArgs.code as string;
+        setCurrentGeneratedCode(code);
+        addToolResult({
+          toolCallId: invocation.toolCallId,
+          result: { success: true },
+        });
+      }
+    });
   }, [messages, addToolResult, setCurrentGeneratedCode]);
 
   const hasCode = currentGeneratedCode.length > 0;
