@@ -1,14 +1,14 @@
 "use client";
 
-import { useRef, useCallback, type FormEvent, type KeyboardEvent } from "react";
+import { useRef, useCallback, type ChangeEvent, type KeyboardEvent } from "react";
 import { Send, ImagePlus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
 interface ChatInputProps {
   input: string;
-  onInputChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
-  onSubmit: (e: FormEvent) => void;
+  onInputChange: (e: ChangeEvent<HTMLTextAreaElement>) => void;
+  onSubmit: () => void;
   disabled?: boolean;
   isLoading?: boolean;
 }
