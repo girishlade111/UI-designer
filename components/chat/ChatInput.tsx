@@ -32,15 +32,15 @@ export function ChatInput({ input, onInputChange, onSubmit, disabled, isLoading 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      onSubmit(e as unknown as FormEvent);
+      onSubmit();
       if (textareaRef.current) {
         textareaRef.current.style.height = "auto";
       }
     }
   };
 
-  const handleSend = (e: FormEvent) => {
-    onSubmit(e);
+  const handleSend = () => {
+    onSubmit();
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
     }
