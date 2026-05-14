@@ -9,35 +9,16 @@ import { useAppStore } from "@/store/useAppStore";
 import { Settings, Square, Play, Download, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-function extractCodeBlock(content: string): string {
-  const codeBlockMatch = content.match(/```tsx\s*([\s\S]*?)\s*```/);
-  if (codeBlockMatch && codeBlockMatch[1]) {
-    return codeBlockMatch[1].trim();
-  }
-  const codeMatch = content.match(/```(?:typescript|javascript)?\s*([\s\S]*?)\s*```/);
-  if (codeMatch && codeMatch[1]) {
-    return codeMatch[1].trim();
-  }
-  return content.trim();
-}
-
 export function ChatPanel() {
   const { apiKey, setIsSettingsOpen, currentGeneratedCode, setCurrentGeneratedCode } = useAppStore();
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const isDisabled = !apiKey;
 
-  const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
+  const { messages, input, handleInputChange, handleSubmit, isLoading, addToolResult } = useChat({
     api: "/api/chat",
-    apiKey,
     body: { apiKey },
     headers: { "Content-Type": "application/json" },
-    onFinish: (message) => {
-      if (message.role === "assistant") {
-        const code = extractCodeBlock(message.content);
-        setCurrentGeneratedCode(code);
-      }
-    },
     enabled: !!apiKey,
   });
 
@@ -87,7 +68,7 @@ export function ChatPanel() {
                 <Loader2 className="h-4 w-4 animate-spin" />
               </div>
               <div className="rounded-2xl px-4 py-2.5 text-sm bg-muted/70 text-foreground rounded-bl-md">
-                Generating...
+                Processing...
               </div>
             </div>
           )}
