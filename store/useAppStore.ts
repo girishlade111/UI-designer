@@ -39,10 +39,13 @@ export const useAppStore = create<AppState>()(
       currentGeneratedCode: "",
       codeHistory: [""],
       historyIndex: 0,
+      isGenerating: false,
 
       setApiKey: (key) => set({ apiKey: key }),
 
       setIsSettingsOpen: (open) => set({ isSettingsOpen: open }),
+
+      setIsGenerating: (generating) => set({ isGenerating: generating }),
 
       addChatMessage: (message) =>
         set((state) => ({
