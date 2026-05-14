@@ -1,5 +1,8 @@
-import { openai } from "@ai-sdk/openai";
+import { createOpenAI } from "@ai-sdk/openai";
+import { createGoogle } from "@ai-sdk/google";
+import { createAnthropic } from "@ai-sdk/anthropic";
 import { streamText } from "ai";
+import { PROVIDERS } from "@/lib/models-registry";
 
 export const dynamic = "force-dynamic";
 
@@ -73,14 +76,50 @@ function transformMessageContent(content: string | Array<{ type: string; text?: 
   return content;
 }
 
+const BASE_URLS: Record<string, string> = {
+  openai: "https://api.openai.com/v1",
+  openrouter: "https://openrouter.ai/api/v1",
+  groq: "https://api.groq.com/openai/v1",
+  togetherai: "https://api.together.ai/v1",
+  deepseek: "https://api.deepseek.com/v1",
+  xai: "https://api.x.ai/v1",
+  glm: "https://open.bigmodel.cn/api/paas/v4",
+  minimax: "https://api.minimax.chat/v1",
+  kimi: "https://api.moonshot.cn/v1",
+  qwen: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+};
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { messages, apiKey } = body;
+    const { messages, selectedProviderId, selectedModelId, apiKeys } = body;
 
+    if (!selectedProviderId) {
+      return Response.json(
+        { error: "Provider is required" },
+        { status: 400 }
+      );
+    }
+
+    if (!selectedModelId) {
+      return Response.json(
+        { error: "Model is required" },
+        { status: 400 }
+      );
+    }
+
+    const provider = PROVIDERS.find((p) => p.id === selectedProviderId);
+    if (!provider) {
+      return Response.json(
+        { error: "Invalid provider" },
+        { status: 400 }
+      );
+    }
+
+    const apiKey = apiKeys?.[selectedProviderId];
     if (!apiKey) {
       return Response.json(
-        { error: "API key is required" },
+        { error: `API key is required for ${provider.name}` },
         { status: 400 }
       );
     }
@@ -97,7 +136,32 @@ export async function POST(request: Request) {
       content: transformMessageContent(msg.content),
     }));
 
-    const model = openai("gpt-4o", { apiKey });
+    let model;
+
+    if (selectedProviderId === "gemini") {
+      model = createGoogle({
+        apiKey,
+      })(selectedModelId);
+    } else if (selectedProviderId === "anthropic") {
+      const anthropicKey = apiKey.startsWith("sk-ant-") ? apiKey : `Bearer ${apiKey}`;
+      model = createAnthropic({
+        apiKey: anthropicKey,
+      })(selectedModelId);
+    } else {
+      const baseURL = BASE_URLS[selectedProviderId];
+      if (!baseURL) {
+        return Response.json(
+          { error: `Unsupported provider: ${selectedProviderId}` },
+          { status: 400 }
+        );
+      }
+
+      const openai = createOpenAI({
+        baseURL,
+        apiKey,
+      });
+      model = openai(selectedModelId);
+    }
 
     const result = streamText({
       model,
