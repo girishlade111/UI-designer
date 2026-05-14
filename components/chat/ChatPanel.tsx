@@ -90,7 +90,7 @@ export function ChatPanel() {
         <ChatInput
           input={input}
           onInputChange={handleInputChange}
-          onSubmit={handleSubmit}
+          onSubmit={submitFn}
           disabled={isDisabled}
           isLoading={isLoading}
         />
