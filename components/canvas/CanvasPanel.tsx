@@ -1,11 +1,48 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAppStore } from "@/store/useAppStore";
-import { Copy, Check } from "lucide-react";
+import { Copy, Check, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+
+function generatePreviewHTML(code: string): string {
+  const escapedCode = code.replace(/<\/script>/gi, '<\\/script>');
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, sans-serif; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    try {
+      ${escapedCode}
+      
+      const App = (${code.match(/export default function (\w+)/)?.[1] || 'App'}) || (${code.match(/export default (\w+)/)?.[1]}) || (typeof ${code.match(/const (\w+) = /)?.[1]} !== 'undefined' ? ${code.match(/const (\w+) = /)?.[1]} : null);
+      
+      if (App) {
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+      }
+    } catch (err) {
+      document.body.innerHTML = '<div style="color: #dc2626; padding: 20px; font-family: monospace; white-space: pre-wrap;">' + err.message + '</div>';
+    }
+  </script>
+</body>
+</html>`;
+}
 
 export function CanvasPanel() {
   const { currentGeneratedCode } = useAppStore();
@@ -16,6 +53,11 @@ export function CanvasPanel() {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  const previewHTML = useMemo(() => {
+    if (!currentGeneratedCode) return "";
+    return generatePreviewHTML(currentGeneratedCode);
+  }, [currentGeneratedCode]);
 
   return (
     <div className="h-full flex flex-col">
@@ -35,9 +77,10 @@ export function CanvasPanel() {
           <div className="h-full bg-white rounded-lg border border-border overflow-hidden">
             {currentGeneratedCode ? (
               <iframe
-                srcDoc={currentGeneratedCode}
+                srcDoc={previewHTML}
                 className="w-full h-full border-0"
                 title="Preview"
+                sandbox="allow-scripts"
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-muted-foreground text-sm">
