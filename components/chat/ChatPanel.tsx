@@ -6,7 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
 import { useAppStore } from "@/store/useAppStore";
-import { Settings, Square, Play, Download, Loader2, Sparkles, MessageCircle } from "lucide-react";
+import { Settings, Square, Play, Download, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const tools = {
@@ -39,7 +39,7 @@ export function ChatPanel() {
 
   const isDisabled = !apiKey;
 
-  const { messages, input, handleInputChange, handleSubmit, isLoading, addToolResult } = useChat({
+  const { messages, input, handleInputChange, isLoading, addToolResult, append } = useChat({
     api: "/api/chat",
     body: { apiKey },
     headers: { "Content-Type": "application/json" },
@@ -84,9 +84,26 @@ export function ChatPanel() {
     });
   }, [messages, addToolResult, setCurrentGeneratedCode]);
 
+  const handleSubmitWithImage = async (imageDataUrl?: string) => {
+    if (!input.trim() && !imageDataUrl) return;
+
+    const content: Array<{ type: string; text?: string; image?: string }> = [];
+
+    if (imageDataUrl) {
+      content.push({ type: "image", image: imageDataUrl });
+    }
+    if (input.trim()) {
+      content.push({ type: "text", text: input });
+    }
+
+    await append({
+      role: "user",
+      content: content,
+    });
+  };
+
   const hasCode = currentGeneratedCode.length > 0;
 
-  const submitFn = handleSubmit ?? (() => {});
   const inputChangeFn = handleInputChange ?? (() => {});
   const chatInput = input ?? "";
 
@@ -109,11 +126,11 @@ export function ChatPanel() {
               <p className="text-sm text-muted-foreground mb-2">
                 {isDisabled
                   ? "Add your API key in Settings to start"
-                  : "Describe what you want to build, and I'll help you create it"}
+                  : "Describe what you want to build, or upload a wireframe image"}
               </p>
               {!isDisabled && (
                 <p className="text-xs text-muted-foreground">
-                  Try: &ldquo;Create a login form with email and password fields&rdquo;
+                  Try: &ldquo;Create a login form from this wireframe&rdquo;
                 </p>
               )}
             </div>
@@ -144,7 +161,7 @@ export function ChatPanel() {
         <ChatInput
           input={chatInput}
           onInputChange={inputChangeFn}
-          onSubmit={submitFn}
+          onSubmit={handleSubmitWithImage}
           disabled={isDisabled}
           isLoading={isLoading}
         />
