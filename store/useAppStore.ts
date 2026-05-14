@@ -17,11 +17,13 @@ interface AppState {
   currentGeneratedCode: string;
   codeHistory: string[];
   historyIndex: number;
+  isGenerating: boolean;
   setApiKey: (key: string) => void;
   setIsSettingsOpen: (open: boolean) => void;
   addChatMessage: (message: Omit<ChatMessage, "id" | "timestamp">) => void;
   clearChatHistory: () => void;
   setCurrentGeneratedCode: (code: string) => void;
+  setIsGenerating: (generating: boolean) => void;
   undoCode: () => void;
   redoCode: () => void;
 }
