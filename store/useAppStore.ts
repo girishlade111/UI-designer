@@ -116,6 +116,9 @@ export const useAppStore = create<AppState>()(
         apiKey: state.apiKey,
         codeHistory: state.codeHistory,
         historyIndex: state.historyIndex,
+        selectedProviderId: state.selectedProviderId,
+        selectedModelId: state.selectedModelId,
+        apiKeys: state.apiKeys,
       }),
     }
   )
