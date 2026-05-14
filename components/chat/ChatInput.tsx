@@ -1,18 +1,19 @@
 "use client";
 
-import { useState, useRef, useCallback, type KeyboardEvent } from "react";
+import { useRef, useCallback, type FormEvent, type KeyboardEvent } from "react";
 import { Send, ImagePlus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
 interface ChatInputProps {
-  onSend: (message: string) => void;
+  input: string;
+  onInputChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+  onSubmit: (e: FormEvent) => void;
   disabled?: boolean;
   isLoading?: boolean;
 }
 
-export function ChatInput({ onSend, disabled, isLoading }: ChatInputProps) {
-  const [input, setInput] = useState("");
+export function ChatInput({ input, onInputChange, onSubmit, disabled, isLoading }: ChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const adjustHeight = useCallback(() => {
@@ -23,20 +24,25 @@ export function ChatInput({ onSend, disabled, isLoading }: ChatInputProps) {
     }
   }, []);
 
-  const handleSend = useCallback(() => {
-    const trimmed = input.trim();
-    if (!trimmed || disabled) return;
-    onSend(trimmed);
-    setInput("");
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "auto";
-    }
-  }, [input, onSend, disabled]);
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    onInputChange(e);
+    adjustHeight();
+  };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      handleSend();
+      onSubmit(e as unknown as FormEvent);
+      if (textareaRef.current) {
+        textareaRef.current.style.height = "auto";
+      }
+    }
+  };
+
+  const handleSend = (e: FormEvent) => {
+    onSubmit(e);
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
     }
   };
 
@@ -46,10 +52,7 @@ export function ChatInput({ onSend, disabled, isLoading }: ChatInputProps) {
         <Textarea
           ref={textareaRef}
           value={input}
-          onChange={(e) => {
-            setInput(e.target.value);
-            adjustHeight();
-          }}
+          onChange={handleChange}
           onKeyDown={handleKeyDown}
           placeholder={disabled ? "Add API key in Settings to start" : "Describe your UI..."}
           disabled={disabled}
