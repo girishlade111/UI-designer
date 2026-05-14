@@ -31,6 +31,8 @@ export function ChatPanel() {
     enabled: !!apiKey,
   });
 
+  const submitFn = handleSubmit ?? (() => {});
+
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
