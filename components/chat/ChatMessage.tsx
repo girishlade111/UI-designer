@@ -3,6 +3,8 @@
 import { cn } from "@/lib/utils";
 import { Bot, User, HelpCircle, Sparkles } from "lucide-react";
 
+type ContentPart = { type: string; text?: string; image?: string };
+
 interface ToolInvocation {
   toolCallId: string;
   toolName: string;
@@ -12,7 +14,7 @@ interface ToolInvocation {
 
 interface ChatMessageProps {
   role: "user" | "assistant";
-  content: string;
+  content: string | ContentPart[];
   timestamp?: number;
   toolInvocations?: ToolInvocation[];
   icon?: React.ReactNode;
@@ -20,6 +22,14 @@ interface ChatMessageProps {
 
 export function ChatMessage({ role, content, toolInvocations, icon }: ChatMessageProps) {
   const isUser = role === "user";
+
+  const isArrayContent = Array.isArray(content);
+  const textContent = isArrayContent 
+    ? content.filter((p) => p.type === "text").map((p) => p.text).join(" ")
+    : content;
+  const images = isArrayContent 
+    ? content.filter((p) => p.type === "image").map((p) => p.image) 
+    : [];
 
   return (
     <div
@@ -39,6 +49,14 @@ export function ChatMessage({ role, content, toolInvocations, icon }: ChatMessag
         {icon || (isUser ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />)}
       </div>
       <div className="space-y-2">
+        {images.map((img, idx) => (
+          <img
+            key={idx}
+            src={img}
+            alt="Uploaded wireframe"
+            className="max-h-32 rounded-lg border border-border"
+          />
+        ))}
         {toolInvocations?.map((invocation) => {
           if (invocation.toolName === "askClarificationQuestion") {
             const question = (invocation.args as Record<string, unknown>)?.question as string;
@@ -73,7 +91,7 @@ export function ChatMessage({ role, content, toolInvocations, icon }: ChatMessag
           }
           return null;
         })}
-        {content && !isUser && toolInvocations?.some(i => i.toolName === "generateReactComponent" && (i.result as Record<string, unknown>)?.success) ? null : (
+        {textContent && !isUser && toolInvocations?.some(i => i.toolName === "generateReactComponent" && (i.result as Record<string, unknown>)?.success) ? null : (
           <div
             className={cn(
               "rounded-2xl px-4 py-2.5 text-sm",
@@ -82,7 +100,7 @@ export function ChatMessage({ role, content, toolInvocations, icon }: ChatMessag
                 : "bg-muted/70 text-foreground rounded-bl-md"
             )}
           >
-            {content}
+            {textContent}
           </div>
         )}
       </div>
