@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAppStore } from "@/store/useAppStore";
-import { Copy, Check, AlertTriangle } from "lucide-react";
+import { Copy, Check, Undo2, Redo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 function generatePreviewHTML(code: string): string {
@@ -45,8 +45,11 @@ function generatePreviewHTML(code: string): string {
 }
 
 export function CanvasPanel() {
-  const { currentGeneratedCode } = useAppStore();
+  const { currentGeneratedCode, undoCode, redoCode, historyIndex, codeHistory } = useAppStore();
   const [copied, setCopied] = useState(false);
+
+  const canUndo = historyIndex > 0;
+  const canRedo = historyIndex < codeHistory.length - 1;
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(currentGeneratedCode);
@@ -63,6 +66,28 @@ export function CanvasPanel() {
     <div className="h-full flex flex-col">
       <div className="p-4 border-b border-border flex items-center justify-between">
         <h2 className="font-semibold text-sm">Canvas</h2>
+        <div className="flex gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={undoCode}
+            disabled={!canUndo}
+            title="Undo"
+          >
+            <Undo2 className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={redoCode}
+            disabled={!canRedo}
+            title="Redo"
+          >
+            <Redo2 className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="preview" className="flex-1 flex flex-col min-h-0">
