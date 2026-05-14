@@ -15,10 +15,19 @@ export function ChatPanel() {
 
   const isDisabled = !apiKey;
 
-  const { messages, input, handleInputChange, handleSubmit, isLoading, addToolResult } = useChat({
+  const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
     api: "/api/chat",
     body: { apiKey },
     headers: { "Content-Type": "application/json" },
+    onFinish: (message) => {
+      if (message.role === "assistant") {
+        const codeMatch = message.content.match(/```tsx\s*([\s\S]*?)\s*```/);
+        const code = codeMatch ? codeMatch[1].trim() : message.content.trim();
+        if (code.length > 0 && (code.includes("export") || code.includes("function") || code.includes("return"))) {
+          setCurrentGeneratedCode(code);
+        }
+      }
+    },
     enabled: !!apiKey,
   });
 
