@@ -9,6 +9,18 @@ import { useAppStore } from "@/store/useAppStore";
 import { Settings, Square, Play, Download, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+function extractCodeBlock(content: string): string {
+  const codeBlockMatch = content.match(/```tsx\s*([\s\S]*?)\s*```/);
+  if (codeBlockMatch && codeBlockMatch[1]) {
+    return codeBlockMatch[1].trim();
+  }
+  const codeMatch = content.match(/```(?:typescript|javascript)?\s*([\s\S]*?)\s*```/);
+  if (codeMatch && codeMatch[1]) {
+    return codeMatch[1].trim();
+  }
+  return content.trim();
+}
+
 export function ChatPanel() {
   const { apiKey, setIsSettingsOpen, currentGeneratedCode, setCurrentGeneratedCode } = useAppStore();
   const scrollRef = useRef<HTMLDivElement>(null);
