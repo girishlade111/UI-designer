@@ -54,6 +54,10 @@ export function ChatPanel() {
   }, [messages]);
 
   useEffect(() => {
+    setIsGenerating(isLoading);
+  }, [isLoading, setIsGenerating]);
+
+  useEffect(() => {
     const lastMessage = messages[messages.length - 1];
     if (!lastMessage || lastMessage.role !== "assistant") return;
     

@@ -51,9 +51,8 @@ function generatePreviewHTML(code: string): string {
 }
 
 export function CanvasPanel() {
-  const { currentGeneratedCode, undoCode, redoCode, historyIndex, codeHistory } = useAppStore();
+  const { currentGeneratedCode, undoCode, redoCode, historyIndex, codeHistory, isGenerating } = useAppStore();
   const [copied, setCopied] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
 
   const canUndo = historyIndex > 0;
   const canRedo = historyIndex < codeHistory.length - 1;
