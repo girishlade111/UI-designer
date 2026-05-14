@@ -22,9 +22,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const model = openai(apiKey, {
-      baseURL: "https://api.openai.com/v1",
-    });
+    const model = openai("gpt-4o", { apiKey });
 
     const { text } = await generateText({
       model,
