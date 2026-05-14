@@ -1,29 +1,38 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useChat } from "ai/react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
 import { useAppStore } from "@/store/useAppStore";
-import { Settings, Square, Play, Download } from "lucide-react";
+import { Settings, Square, Play, Download, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function ChatPanel() {
-  const { apiKey, chatHistory, addChatMessage, setIsSettingsOpen, currentGeneratedCode } = useAppStore();
+  const { apiKey, setIsSettingsOpen, currentGeneratedCode, setCurrentGeneratedCode } = useAppStore();
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const isDisabled = !apiKey;
+
+  const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
+    api: "/api/chat",
+    apiKey,
+    body: { apiKey },
+    headers: { "Content-Type": "application/json" },
+    onFinish: (message) => {
+      if (message.role === "assistant") {
+        setCurrentGeneratedCode(message.content);
+      }
+    },
+    enabled: !!apiKey,
+  });
 
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [chatHistory]);
-
-  const handleSend = (message: string) => {
-    addChatMessage({ role: "user", content: message });
-    addChatMessage({ role: "assistant", content: "Generating UI..." });
-  };
+  }, [messages]);
 
   const hasCode = currentGeneratedCode.length > 0;
 
@@ -41,7 +50,7 @@ export function ChatPanel() {
 
       <ScrollArea className="flex-1">
         <div ref={scrollRef} className="p-4 space-y-4">
-          {chatHistory.length === 0 ? (
+          {messages.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-sm text-muted-foreground mb-2">
                 {isDisabled
@@ -55,15 +64,31 @@ export function ChatPanel() {
               )}
             </div>
           ) : (
-            chatHistory.map((msg) => (
-              <ChatMessage key={msg.id} role={msg.role} content={msg.content} />
+            messages.map((msg) => (
+              <ChatMessage key={msg.id} role={msg.role as "user" | "assistant"} content={msg.content} />
             ))
+          )}
+          {isLoading && (
+            <div className="flex gap-3 max-w-[85%] mr-auto">
+              <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 bg-muted text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+              </div>
+              <div className="rounded-2xl px-4 py-2.5 text-sm bg-muted/70 text-foreground rounded-bl-md">
+                Generating...
+              </div>
+            </div>
           )}
         </div>
       </ScrollArea>
 
       <div className="p-4 border-t border-border">
-        <ChatInput onSend={handleSend} disabled={isDisabled} />
+        <ChatInput
+          input={input}
+          onInputChange={handleInputChange}
+          onSubmit={handleSubmit}
+          disabled={isDisabled}
+          isLoading={isLoading}
+        />
       </div>
 
       <div className="p-4 border-t border-border flex gap-2">
