@@ -62,7 +62,7 @@ export function ModelSelector() {
         <Select
           value={selectedProviderId}
           onValueChange={(value) => {
-            setProvider(value);
+            if (value) setProvider(value);
             setModelSearch("");
           }}
         >
