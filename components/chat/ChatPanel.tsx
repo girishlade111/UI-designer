@@ -2,8 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
-import { tool, DefaultChatTransport } from "ai";
-import { z } from "zod";
+import { DefaultChatTransport } from "ai";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
@@ -12,21 +11,6 @@ import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ModelSelector } from "@/components/ModelSelector";
 import { parseCodeBlock } from "@/lib/parse-code-block";
-
-const chatTools = {
-  askClarificationQuestion: tool({
-    description: "Use this if the user's prompt is too vague or lacks layout/color details.",
-    inputSchema: z.object({
-      question: z.string().describe("The clarifying question to ask the user"),
-    }),
-  }),
-  generateReactComponent: tool({
-    description: "Use this when the requirements are clear to generate the final code.",
-    inputSchema: z.object({
-      code: z.string().describe("The complete React component code"),
-    }),
-  }),
-};
 
 export function ChatPanel() {
   const { selectedProviderId, selectedModelId, apiKeys, setIsSettingsOpen, currentGeneratedCode, setCurrentGeneratedCode, setIsGenerating } = useAppStore();
@@ -43,7 +27,6 @@ export function ChatPanel() {
       headers: { "Content-Type": "application/json" },
       body: { selectedProviderId, selectedModelId, apiKeys, currentGeneratedCode },
     }),
-    tools: chatTools,
   });
 
   const isLoading = status === "submitted" || status === "streaming";
