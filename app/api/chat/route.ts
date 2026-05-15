@@ -128,7 +128,6 @@ export async function POST(req: Request) {
       messages: modelMessages,
       tools: chatTools,
       toolChoice: "auto",
-      maxSteps: 5,
     });
 
     return result.toUIMessageStreamResponse();
