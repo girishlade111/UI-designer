@@ -137,14 +137,78 @@ function CanvasContent() {
     }
   };
 
-  const handleApplyEdit = (instruction: string) => {
-    // TODO: built in Prompt 21
+  const handleApplyEdit = async (instruction: string) => {
+    if (!selectedScreenId || isEditing || !project) return;
+    const screen = project.screens.find(s => s.id === selectedScreenId);
+    if (!screen) return;
+
     setIsEditing(true);
-    setTimeout(() => setIsEditing(false), 1000); 
+    setLoadingScreenId(selectedScreenId);
+
+    try {
+      const res = await fetch("/api/edit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentHtml: screen.htmlContent, instruction }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || data.error) {
+        showToast.error(data.error || TOASTS.EDIT_FAILED);
+        return;
+      }
+
+      const updatedScreens = project.screens.map((s) => {
+        if (s.id === selectedScreenId) {
+          return {
+            ...s,
+            htmlContent: data.updatedHtml,
+            editHistory: [...s.editHistory, s.htmlContent],
+          };
+        }
+        return s;
+      });
+
+      setEditCountMap((prev) => ({
+        ...prev,
+        [selectedScreenId]: (prev[selectedScreenId] || 0) + 1,
+      }));
+
+      const updatedProject = { ...project, screens: updatedScreens, updatedAt: new Date().toISOString() };
+      setProject(updatedProject);
+      localStorage.setItem('ladedesign_project', JSON.stringify(updatedProject));
+      showToast.success(TOASTS.EDIT_APPLIED);
+    } catch (error) {
+      showToast.error(TOASTS.EDIT_FAILED);
+    } finally {
+      setIsEditing(false);
+      setLoadingScreenId(null);
+    }
   };
 
   const handleUndo = (screenId: string) => {
-    // TODO: built in Prompt 21
+    if (!project || isEditing) return;
+    const screen = project.screens.find(s => s.id === screenId);
+    if (!screen || screen.editHistory.length === 0) return;
+
+    const previousHtml = screen.editHistory[screen.editHistory.length - 1];
+    const newHistory = screen.editHistory.slice(0, -1);
+
+    const updatedScreens = project.screens.map((s) => {
+      if (s.id === screenId) {
+        return {
+          ...s,
+          htmlContent: previousHtml,
+          editHistory: newHistory,
+        };
+      }
+      return s;
+    });
+
+    const updatedProject = { ...project, screens: updatedScreens, updatedAt: new Date().toISOString() };
+    setProject(updatedProject);
+    localStorage.setItem('ladedesign_project', JSON.stringify(updatedProject));
   };
 
   const handleExportAll = () => {
