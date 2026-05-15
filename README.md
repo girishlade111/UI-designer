@@ -1,23 +1,30 @@
-# UI Designer App — Stitch AI Clone
+# UI Designer App — AI-Powered UI Component Generator
 
 > A **Next.js 14** multi-provider AI-powered UI generator that converts natural language prompts into production-ready React components with live preview, syntax highlighting, and version history.
+
+![Next.js](https://img.shields.io/badge/Next.js-14-black?logo=next.js)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38bdf8?logo=tailwindcss)
+![AI SDK](https://img.shields.io/badge/Vercel_AI_SDK-6.0-000?logo=vercel)
+![License](https://img.shields.io/badge/License-Educational-green)
 
 ---
 
 ## Table of Contents
 
-- [Features](#-features)
-- [Dev Stack](#-dev-stack)
-- [Project Statistics](#-project-statistics)
-- [System Architecture](#-system-architecture)
-- [Project Structure](#-project-structure)
-- [Configuration](#-configuration)
-- [Getting Started](#-getting-started)
-- [Available Scripts](#-available-scripts)
-- [Component List](#-component-list)
-- [Supported AI Providers](#-supported-ai-providers)
-- [Security Notes](#-security-notes)
-- [License](#-license)
+- [Features](#features)
+- [Dev Stack](#dev-stack)
+- [Project Statistics](#project-statistics)
+- [System Architecture](#system-architecture)
+- [Project Structure](#project-structure)
+- [Configuration](#configuration)
+- [Getting Started](#getting-started)
+- [Available Scripts](#available-scripts)
+- [Component List](#component-list)
+- [Supported AI Providers](#supported-ai-providers)
+- [SEO Optimization](#seo-optimization)
+- [Security Notes](#security-notes)
+- [License](#license)
 
 ---
 
@@ -93,9 +100,10 @@
 
 | Metric | Value |
 |--------|-------|
-| **Total Source Files** | 20+ |
-| **Custom Components** | 10+ |
-| **shadcn/ui Components** | 8 |
+| **Total Source Files** | 36 |
+| **Lines of Code** | ~2,435 |
+| **Custom Components** | 10 |
+| **shadcn/ui Components** | 9 |
 | **AI Providers Supported** | 12 |
 | **Total Models Available** | 50+ |
 | **Zustand Store Slices** | 1 (unified) |
@@ -271,7 +279,10 @@ flowchart TB
 │   │       └── route.ts          # Multi-provider streaming API route
 │   ├── page.tsx                  # Main layout with resizable panels
 │   ├── globals.css               # Global styles + CSS variables
-│   └── layout.tsx                # Root layout with metadata
+│   ├── layout.tsx                # Root layout with SEO metadata
+│   ├── robots.ts                 # Dynamic robots.txt generation
+│   ├── sitemap.ts                # Dynamic sitemap.xml generation
+│   └── favicon.ico               # App favicon
 ├── components/
 │   ├── ui/                       # shadcn/ui components
 │   │   ├── button.tsx
@@ -331,7 +342,7 @@ flowchart TB
 - **Content paths**: `./app/**/*.{js,ts,jsx,tsx,mdx}`, `./components/**/*.{js,ts,jsx,tsx,mdx}`
 - **Base color**: Neutral
 - **CSS variables**: Enabled for theme switching
-- **Dark mode**: Class-based via `next-themes`
+- **Dark mode**: Class-based
 
 ### TypeScript (`tsconfig.json`)
 
@@ -343,11 +354,18 @@ flowchart TB
 ### Zustand Persistence
 
 Persisted fields via `partialize`:
+
 - `apiKeys` — Per-provider API keys
 - `codeHistory` — Array of all generated code versions
 - `historyIndex` — Current position in code history
 - `selectedProviderId` — Last selected AI provider
 - `selectedModelId` — Last selected model
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `NEXT_PUBLIC_SITE_URL` | Production site URL for SEO metadata | `https://uidesigner.app` |
 
 ---
 
@@ -456,6 +474,32 @@ npm run dev
 - **OpenAI-compatible** (OpenRouter, Groq, TogetherAI, DeepSeek, xAI, GLM, MiniMax, Kimi, Qwen) → Uses `createOpenAI()` with dynamic `baseURL` and `apiKey`
 - **Google Gemini** → Uses `createGoogle()` from `@ai-sdk/google`
 - **Anthropic Claude** → Uses `createAnthropic()` from `@ai-sdk/anthropic`
+
+---
+
+## SEO Optimization
+
+### Implemented SEO Features
+
+- **Meta Tags** — Comprehensive title, description, keywords, authors, and canonical URLs
+- **Open Graph** — Full OG tags for social media sharing (title, description, image, locale)
+- **Twitter Cards** — `summary_large_image` card with creator handle
+- **Robots.txt** — Dynamic generation via `app/robots.ts`, allows all crawlers
+- **Sitemap.xml** — Dynamic generation via `app/sitemap.ts` with daily update frequency
+- **Viewport** — Theme color, device-width, scale limits
+- **Preconnect** — DNS prefetch hints for performance
+
+### SEO Files
+
+| File | Type | Description |
+|------|------|-------------|
+| `app/layout.tsx` | Metadata export | Title template, OG, Twitter, robots, canonical |
+| `app/robots.ts` | Dynamic route | Generates `/robots.txt` allowing all crawlers |
+| `app/sitemap.ts` | Dynamic route | Generates `/sitemap.xml` with all pages |
+
+### Environment Setup
+
+Set `NEXT_PUBLIC_SITE_URL` to your production domain for proper canonical URLs and OG tags.
 
 ---
 
