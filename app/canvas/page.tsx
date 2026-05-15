@@ -209,6 +209,7 @@ function CanvasContent() {
     const updatedProject = { ...project, screens: updatedScreens, updatedAt: new Date().toISOString() };
     setProject(updatedProject);
     localStorage.setItem('ladedesign_project', JSON.stringify(updatedProject));
+    showToast.info("Edit undone.");
   };
 
   const handleExportAll = () => {
