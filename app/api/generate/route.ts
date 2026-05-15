@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { GenerateRequest } from '@/types/project';
-import { callNvidiaNim } from '@/lib/ai/nvidia-nim';
+import { routeGeneration } from '@/lib/ai/model-router';
 
 function stripMarkdownFences(text: string): string {
   let cleaned = text.trim();
@@ -36,14 +36,18 @@ export async function POST(req: Request) {
     let parsedObject = null;
 
     try {
-      rawResponse = await callNvidiaNim(prompt, layoutType);
+      rawResponse = await routeGeneration(prompt, layoutType);
       const cleaned = stripMarkdownFences(rawResponse);
       parsedObject = JSON.parse(cleaned);
     } catch (parseError) {
       console.error("Initial parse failed or API error, retrying...", rawResponse, parseError);
       
+      if (parseError instanceof Error && parseError.message === "AI_UNAVAILABLE") {
+        throw parseError; // Rethrow to be caught by the outer catch
+      }
+
       const retryInstruction = "Your previous response was not valid JSON. Return ONLY raw JSON, no markdown, no explanation.";
-      rawResponse = await callNvidiaNim(prompt, layoutType, retryInstruction);
+      rawResponse = await routeGeneration(prompt, layoutType, retryInstruction);
       const cleaned = stripMarkdownFences(rawResponse);
       
       // If this throws, it will be caught by the outer catch block
@@ -54,6 +58,12 @@ export async function POST(req: Request) {
 
   } catch (error) {
     console.error("Unhandled error in /api/generate:", error);
+    if (error instanceof Error && error.message === "AI_UNAVAILABLE") {
+      return NextResponse.json(
+        { error: "AI service is temporarily unavailable. Please try again in a few minutes." },
+        { status: 503 }
+      );
+    }
     return NextResponse.json(
       { error: "Generation failed. Try simplifying your description." },
       { status: 500 }
