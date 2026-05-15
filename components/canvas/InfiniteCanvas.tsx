@@ -33,48 +33,68 @@ export function InfiniteCanvas({
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [hasMoved, setHasMoved] = useState(false);
-  
-  const [isMobileView, setIsMobileView] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
 
   const screenWidth = layoutType === "mobile" ? 390 : 1280;
   const screenHeight = layoutType === "mobile" ? 844 : 800;
   const gap = 80;
 
-  // Check mobile viewport
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobileView(window.innerWidth < 768);
-    };
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+  const triggerAnimation = useCallback(() => {
+    setIsAnimating(true);
+    setTimeout(() => setIsAnimating(false), 300);
   }, []);
+
+  const fitToView = useCallback(() => {
+    if (!containerRef.current || screens.length === 0) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const totalWidth = screens.length * screenWidth + Math.max(0, screens.length - 1) * gap;
+    
+    // Fit with 60px padding on each side (120px total)
+    let newZoom = (rect.width - 120) / totalWidth; 
+    newZoom = Math.min(Math.max(newZoom, 0.2), 1.0);
+    
+    triggerAnimation();
+    setZoom(newZoom);
+    setOffset({
+      x: (rect.width - totalWidth * newZoom) / 2,
+      y: (rect.height - screenHeight * newZoom) / 2,
+    });
+  }, [screens.length, screenWidth, screenHeight, gap, triggerAnimation]);
 
   // Center screens on initial load
   const hasInitialized = useRef(false);
   useEffect(() => {
-    if (screens.length > 0 && !hasInitialized.current && containerRef.current && !isMobileView) {
+    if (screens.length > 0 && !hasInitialized.current) {
       hasInitialized.current = true;
-      const rect = containerRef.current.getBoundingClientRect();
-      const totalWidth = screens.length * screenWidth + Math.max(0, screens.length - 1) * gap;
-      setOffset({
-        x: (rect.width - totalWidth * zoom) / 2,
-        y: (rect.height - screenHeight * zoom) / 2,
-      });
+      fitToView();
     }
-  }, [screens.length, screenWidth, screenHeight, zoom, isMobileView]);
+  }, [screens.length, fitToView]);
+
+  // Keyboard shortcut F
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if typing in an input
+      if (["INPUT", "TEXTAREA"].includes((e.target as HTMLElement)?.tagName)) return;
+      if (e.key.toLowerCase() === "f") {
+        e.preventDefault();
+        fitToView();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [fitToView]);
 
   // Non-passive wheel event for zoom
   useEffect(() => {
     const container = containerRef.current;
-    if (!container || isMobileView) return;
+    if (!container) return;
 
     const handleWheel = (e: WheelEvent) => {
       if (!e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
 
-      const zoomDelta = e.deltaY > 0 ? -0.1 : 0.1;
-      let newZoom = Math.min(Math.max(zoom + zoomDelta, 0.2), 2.0);
+      const zoomDelta = e.deltaY * 0.001;
+      let newZoom = Math.min(Math.max(zoom - zoomDelta, 0.2), 2.0);
 
       const rect = container.getBoundingClientRect();
       const cursorX = e.clientX - rect.left;
@@ -92,10 +112,9 @@ export function InfiniteCanvas({
 
     container.addEventListener("wheel", handleWheel, { passive: false });
     return () => container.removeEventListener("wheel", handleWheel);
-  }, [zoom, isMobileView]);
+  }, [zoom]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (isMobileView) return;
     if ((e.target as HTMLElement).closest(".screen-frame-wrapper")) return;
     
     setIsDragging(true);
@@ -104,7 +123,7 @@ export function InfiniteCanvas({
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging || isMobileView) return;
+    if (!isDragging) return;
     setHasMoved(true);
     setOffset({
       x: e.clientX - dragStart.x,
@@ -117,36 +136,26 @@ export function InfiniteCanvas({
   };
 
   const handleBackgroundClick = (e: React.MouseEvent) => {
-    if (isMobileView) return;
     if (hasMoved) return; // Was a drag, not a click
     if ((e.target as HTMLElement).closest(".screen-frame-wrapper")) return;
 
     onSelectScreen(null);
 
-    // Zoom to fit
-    if (containerRef.current && screens.length > 0) {
-      const rect = containerRef.current.getBoundingClientRect();
-      const totalWidth = screens.length * screenWidth + Math.max(0, screens.length - 1) * gap;
-      
-      let newZoom = (rect.width - 100) / totalWidth; 
-      newZoom = Math.min(Math.max(newZoom, 0.2), 1.0);
-      
-      setZoom(newZoom);
-      setOffset({
-        x: (rect.width - totalWidth * newZoom) / 2,
-        y: (rect.height - screenHeight * newZoom) / 2,
-      });
+    // If currently zoomed > 1.5, reset zoom to fit view
+    if (zoom > 1.5) {
+      fitToView();
     }
   };
 
   const handleScreenClick = (screenId: string, index: number) => {
     onSelectScreen(screenId);
-    if (!isMobileView && zoom < 0.8 && containerRef.current) {
+    if (zoom < 0.8 && containerRef.current) {
       const newZoom = 1.0;
       const screenCenterX = index * (screenWidth + gap) + screenWidth / 2;
       const screenCenterY = screenHeight / 2;
 
       const rect = containerRef.current.getBoundingClientRect();
+      triggerAnimation();
       setZoom(newZoom);
       setOffset({
         x: rect.width / 2 - screenCenterX * newZoom,
@@ -155,38 +164,109 @@ export function InfiniteCanvas({
     }
   };
 
-  const handleZoomIn = () => setZoom((z) => Math.min(z + 0.1, 2.0));
-  const handleZoomOut = () => setZoom((z) => Math.max(z - 0.1, 0.2));
+  const handleZoomIn = () => {
+    triggerAnimation();
+    setZoom((z) => {
+      const newZoom = Math.min(z + 0.1, 2.0);
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        const cursorX = rect.width / 2;
+        const cursorY = rect.height / 2;
+        const scaleRatio = newZoom / z;
+        setOffset((prev) => ({
+          x: cursorX - (cursorX - prev.x) * scaleRatio,
+          y: cursorY - (cursorY - prev.y) * scaleRatio,
+        }));
+      }
+      return newZoom;
+    });
+  };
 
-  if (isMobileView) {
-    return (
-      <div 
-        className="w-full h-[calc(100vh-56px-56px)] overflow-y-auto bg-[var(--background)] flex flex-col items-center py-8 gap-8"
-        style={{ marginTop: "56px", paddingBottom: "80px" }}
-      >
-        {screens.map((screen) => (
-          <div key={screen.id} onClick={() => onSelectScreen(screen.id)}>
-            <ScreenFrame
-              screen={screen}
-              layoutType={layoutType}
-              isSelected={selectedScreenId === screen.id}
-              isZoomed={true} // Always allow edit on mobile if selected
-              isLoading={loadingScreenId === screen.id}
-              scale={1}
-              onSelect={() => onSelectScreen(screen.id)}
-              onEditClick={onEditClick}
-              onRegenerate={onRegenerate}
-            />
-          </div>
-        ))}
-      </div>
-    );
-  }
+  const handleZoomOut = () => {
+    triggerAnimation();
+    setZoom((z) => {
+      const newZoom = Math.max(z - 0.1, 0.2);
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        const cursorX = rect.width / 2;
+        const cursorY = rect.height / 2;
+        const scaleRatio = newZoom / z;
+        setOffset((prev) => ({
+          x: cursorX - (cursorX - prev.x) * scaleRatio,
+          y: cursorY - (cursorY - prev.y) * scaleRatio,
+        }));
+      }
+      return newZoom;
+    });
+  };
+
+  // Touch logic
+  const touchState = useRef({
+    initialDistance: 0,
+    initialZoom: 1,
+    initialOffset: { x: 0, y: 0 },
+    initialCenter: { x: 0, y: 0 },
+    isPinching: false,
+  });
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if ((e.target as HTMLElement).closest(".screen-frame-wrapper") && e.touches.length === 1) return;
+
+    if (e.touches.length === 1) {
+      setIsDragging(true);
+      setHasMoved(false);
+      setDragStart({ x: e.touches[0].clientX - offset.x, y: e.touches[0].clientY - offset.y });
+    } else if (e.touches.length === 2 && containerRef.current) {
+      setIsDragging(false);
+      touchState.current.isPinching = true;
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      touchState.current.initialDistance = Math.hypot(dx, dy);
+      touchState.current.initialZoom = zoom;
+
+      const rect = containerRef.current.getBoundingClientRect();
+      touchState.current.initialCenter = {
+        x: (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left,
+        y: (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top,
+      };
+      touchState.current.initialOffset = offset;
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length === 1 && isDragging) {
+      setHasMoved(true);
+      setOffset({
+        x: e.touches[0].clientX - dragStart.x,
+        y: e.touches[0].clientY - dragStart.y,
+      });
+    } else if (e.touches.length === 2 && touchState.current.isPinching) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const distance = Math.hypot(dx, dy);
+      const scaleDelta = distance / touchState.current.initialDistance;
+
+      let newZoom = touchState.current.initialZoom * scaleDelta;
+      newZoom = Math.min(Math.max(newZoom, 0.2), 2.0);
+
+      const scaleRatio = newZoom / touchState.current.initialZoom;
+      setZoom(newZoom);
+      setOffset({
+        x: touchState.current.initialCenter.x - (touchState.current.initialCenter.x - touchState.current.initialOffset.x) * scaleRatio,
+        y: touchState.current.initialCenter.y - (touchState.current.initialCenter.y - touchState.current.initialOffset.y) * scaleRatio,
+      });
+    }
+  };
+
+  const handleTouchEnd = () => {
+    setIsDragging(false);
+    touchState.current.isPinching = false;
+  };
 
   return (
     <div
       ref={containerRef}
-      className={`w-full h-full absolute overflow-hidden ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
+      className={`w-full h-full absolute overflow-hidden touch-none ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
       style={{
         top: 0,
         left: 0,
@@ -199,9 +279,13 @@ export function InfiniteCanvas({
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
       onClick={handleBackgroundClick}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
     >
       <div
-        className="absolute top-0 left-0 transition-transform duration-75 origin-top-left"
+        className={`absolute top-0 left-0 origin-top-left ${isAnimating ? "transition-transform duration-300 ease-out" : ""}`}
         style={{ transform: `translate(${offset.x}px, ${offset.y}px)` }}
       >
         {screens.map((screen, index) => (
