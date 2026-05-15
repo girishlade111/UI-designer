@@ -13,7 +13,7 @@ import { ModelSelector } from "@/components/ModelSelector";
 import { parseCodeBlock } from "@/lib/parse-code-block";
 
 export function ChatPanel() {
-  const { selectedProviderId, selectedModelId, apiKeys, setIsSettingsOpen, currentGeneratedCode, setCurrentGeneratedCode, setIsGenerating } = useAppStore();
+  const { selectedProviderId, selectedModelId, apiKeys, currentGeneratedCode, setCurrentGeneratedCode, setIsGenerating } = useAppStore();
   const scrollRef = useRef<HTMLDivElement>(null);
   const processedToolCalls = useRef<Set<string>>(new Set());
   const [input, setInput] = useState("");
