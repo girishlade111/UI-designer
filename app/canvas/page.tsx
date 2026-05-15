@@ -333,16 +333,3 @@ export default function CanvasPage() {
   );
 }
 
-isPreviewMode && <PrototypePreview />} */}
-    </div>
-  );
-}
-
-export default function CanvasPage() {
-  return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-[var(--text-muted)] bg-[var(--background)]">Loading...</div>}>
-      <CanvasContent />
-    </Suspense>
-  );
-}
-
