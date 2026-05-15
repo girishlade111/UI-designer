@@ -44,7 +44,7 @@ export function ChatPanel() {
 
   const { messages, input, handleInputChange, isLoading, addToolResult, append } = useChat({
     api: "/api/chat",
-    body: { selectedProviderId, selectedModelId, apiKeys },
+    body: { selectedProviderId, selectedModelId, apiKeys, currentGeneratedCode },
     headers: { "Content-Type": "application/json" },
     tools,
     enabled: !isDisabled,
@@ -106,12 +106,7 @@ export function ChatPanel() {
   const handleSubmitWithImage = async (imageDataUrl?: string) => {
     if (!input.trim() && !imageDataUrl) return;
 
-    let userText = input.trim();
-
-    if (currentGeneratedCode && !imageDataUrl) {
-      userText = `[Current Code State:\n${currentGeneratedCode}]\n\nModify this code based on the user's request: ${userText}`;
-    }
-
+    const userText = input.trim();
     const content: Array<{ type: string; text?: string; image?: string }> = [];
 
     if (imageDataUrl) {
