@@ -69,6 +69,7 @@ export function ScreenFrame({
         ) : (
           <>
             <iframe
+              key={`${screen.id}-${screen.editHistory.length}`}
               srcDoc={screen.htmlContent}
               sandbox="allow-same-origin"
               className="w-full h-full bg-white border-none"
