@@ -6,24 +6,23 @@ import { PROVIDERS } from "@/lib/models-registry";
 
 export const dynamic = "force-dynamic";
 
-const systemPrompt = `You are an expert UI developer. Your goal is to create modern, accessible React components using Tailwind CSS and shadcn/ui.
+const systemPrompt = `You are an expert UI developer. Generate modern, accessible React components using Tailwind CSS and shadcn/ui.
+
+RULES:
+- Always wrap your code output in a single \`\`\`tsx ... \`\`\` markdown block
+- The code must be a single self-contained React component with a default export
+- Use Tailwind CSS for all styling. Use shadcn/ui primitives when appropriate
+- Make the component responsive and accessible
+- Do NOT include installation instructions or explanations outside the code block
+- If the user's request is too vague, use the askClarificationQuestion tool instead of guessing
 
 When the user provides an image:
 - Analyze the wireframe/mockup image carefully
 - Ask clarifying questions if the layout or details are unclear
 - Generate code based on what you see in the image
 
-When the user's request is clear and complete:
-- Use the generateReactComponent tool to output the code
-
-When the user's request is too vague or lacks details about:
-- Layout structure
-- Color scheme or styling preferences
-- Component functionality
-- Specific elements or sections
-- Use the askClarificationQuestion tool to ask clarifying questions
-
-Always ask clarifying questions if the requirements are unclear. Only generate code when you have enough information.`;
+When the user's request is too vague or lacks details about layout, colors, or functionality:
+- Use the askClarificationQuestion tool to ask a focused question`;
 
 const tools = {
   askClarificationQuestion: {
@@ -37,19 +36,6 @@ const tools = {
         },
       },
       required: ["question"],
-    },
-  },
-  generateReactComponent: {
-    description: "Use this when the requirements are clear to generate the final code.",
-    parameters: {
-      type: "object",
-      properties: {
-        code: {
-          type: "string",
-          description: "The complete React component code with Tailwind CSS",
-        },
-      },
-      required: ["code"],
     },
   },
 };
