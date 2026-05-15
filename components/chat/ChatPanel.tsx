@@ -22,6 +22,16 @@ const tools = {
       required: ["question"],
     },
   },
+  generateReactComponent: {
+    description: "Use this when the requirements are clear to generate the final code.",
+    parameters: {
+      type: "object",
+      properties: {
+        code: { type: "string" },
+      },
+      required: ["code"],
+    },
+  },
 };
 
 export function ChatPanel() {
