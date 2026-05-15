@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
+import { Navbar } from "@/components/shared/Navbar";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -14,15 +15,14 @@ const geistMono = localFont({
 });
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://uidesigner.app";
-const SITE_NAME = "UI Designer AI";
-const SITE_DESCRIPTION =
-  "AI-powered UI design tool that generates production-ready React components from natural language prompts. Build beautiful interfaces in seconds with multi-provider AI support including OpenAI, Anthropic, and Google.";
+const SITE_NAME = "LadeDesign — AI UI Designer";
+const SITE_DESCRIPTION = "Generate complete app flows as HTML/CSS in seconds. Free, no design skills needed.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: `${SITE_NAME} — AI-Powered UI Component Generator`,
-    template: `%s | ${SITE_NAME}`,
+    default: SITE_NAME,
+    template: `%s | LadeDesign`,
   },
   description: SITE_DESCRIPTION,
   keywords: [
@@ -44,8 +44,8 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: "Girish Lade", url: SITE_URL }],
   creator: "Girish Lade",
-  publisher: "UI Designer AI",
-  applicationName: SITE_NAME,
+  publisher: "LadeDesign",
+  applicationName: "LadeDesign",
   generator: "Next.js",
   referrer: "origin-when-cross-origin",
   robots: {
@@ -65,22 +65,22 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_US",
     url: SITE_URL,
-    siteName: SITE_NAME,
-    title: `${SITE_NAME} — AI-Powered UI Component Generator`,
+    siteName: "LadeDesign",
+    title: SITE_NAME,
     description: SITE_DESCRIPTION,
     images: [
       {
         url: `${SITE_URL}/og-image.png`,
         width: 1200,
         height: 630,
-        alt: `${SITE_NAME} - Generate React UI components with AI`,
+        alt: `${SITE_NAME}`,
         type: "image/png",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: `${SITE_NAME} — AI-Powered UI Component Generator`,
+    title: SITE_NAME,
     description: SITE_DESCRIPTION,
     images: [`${SITE_URL}/og-image.png`],
     creator: "@girishlade",
@@ -103,8 +103,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+    { media: "(prefers-color-scheme: light)", color: "#0f0f0f" },
+    { media: "(prefers-color-scheme: dark)", color: "#0f0f0f" },
   ],
   width: "device-width",
   initialScale: 1,
@@ -123,9 +123,12 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased bg-background text-foreground`}
+        className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}
       >
-        {children}
+        <Navbar />
+        <main style={{ paddingTop: '56px' }} className="min-h-screen">
+          {children}
+        </main>
       </body>
     </html>
   );
