@@ -120,7 +120,7 @@ export async function POST(req: Request) {
       ? `${systemPrompt}\n\nThe user currently has a generated component. Here is the current code:\n\n\`\`\`tsx\n${currentGeneratedCode}\`\`\`\n\nModify this code based on the user's request. Use the generateReactComponent tool to output the updated code.`
       : systemPrompt;
 
-    const modelMessages = convertToModelMessages(messages);
+    const modelMessages = await convertToModelMessages(messages);
 
     const result = streamText({
       model,
