@@ -38,6 +38,19 @@ const tools = {
       required: ["question"],
     },
   },
+  generateReactComponent: {
+    description: "Use this when the requirements are clear to generate the final code.",
+    parameters: {
+      type: "object",
+      properties: {
+        code: {
+          type: "string",
+          description: "The complete React component code with Tailwind CSS",
+        },
+      },
+      required: ["code"],
+    },
+  },
 };
 
 function transformMessageContent(content: string | Array<{ type: string; text?: string; image?: string }>) {
