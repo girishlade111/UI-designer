@@ -20,11 +20,9 @@ export default function NotFound() {
         </p>
         
         <Link href="/canvas" passHref legacyBehavior>
-          <Button asChild className="gap-2 bg-[var(--accent)] hover:bg-indigo-600 text-white w-full h-11 text-base">
-            <a>
-              <ArrowLeft className="w-4 h-4" />
-              Back to Canvas
-            </a>
+          <Button className="gap-2 bg-[var(--accent)] hover:bg-indigo-600 text-white w-full h-11 text-base">
+            <ArrowLeft className="w-4 h-4" />
+            Back to Canvas
           </Button>
         </Link>
       </div>
