@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import prettier from "prettier/standalone";
 import babelPlugin from "prettier/plugins/babel";
 import estreePlugin from "prettier/plugins/estree";
@@ -35,9 +35,9 @@ function generatePreviewHTML(code: string): string {
   <script type="text/babel">
     try {
       ${escapedCode}
-      
+
       const App = (${code.match(/export default function (\w+)/)?.[1] || 'App'}) || (${code.match(/export default (\w+)/)?.[1]}) || (typeof ${code.match(/const (\w+) = /)?.[1]} !== 'undefined' ? ${code.match(/const (\w+) = /)?.[1]} : null);
-      
+
       if (App) {
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
@@ -53,23 +53,33 @@ function generatePreviewHTML(code: string): string {
 export function CanvasPanel() {
   const { currentGeneratedCode, undoCode, redoCode, historyIndex, codeHistory, isGenerating } = useAppStore();
   const [copied, setCopied] = useState(false);
+  const [formattedCode, setFormattedCode] = useState("");
 
   const canUndo = historyIndex > 0;
   const canRedo = historyIndex < codeHistory.length - 1;
 
-  const formattedCode = useMemo(() => {
-    if (!currentGeneratedCode) return "";
-    try {
-      return prettier.format(currentGeneratedCode, {
-        parser: "babel-ts",
-        plugins: [babelPlugin, estreePlugin],
-        semi: true,
-        singleQuote: true,
-        tabWidth: 2,
-      });
-    } catch {
-      return currentGeneratedCode;
+  useEffect(() => {
+    if (!currentGeneratedCode) {
+      setFormattedCode("");
+      return;
     }
+    let cancelled = false;
+    const format = async () => {
+      try {
+        const formatted = await prettier.format(currentGeneratedCode, {
+          parser: "babel-ts",
+          plugins: [babelPlugin, estreePlugin],
+          semi: true,
+          singleQuote: true,
+          tabWidth: 2,
+        });
+        if (!cancelled) setFormattedCode(formatted);
+      } catch {
+        if (!cancelled) setFormattedCode(currentGeneratedCode);
+      }
+    };
+    format();
+    return () => { cancelled = true; };
   }, [currentGeneratedCode]);
 
   const handleCopy = async () => {

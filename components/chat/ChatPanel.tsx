@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
-import { tool } from "ai";
+import { tool, DefaultChatTransport } from "ai";
 import { z } from "zod";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ChatMessage } from "./ChatMessage";
@@ -38,23 +38,11 @@ export function ChatPanel() {
   const isDisabled = !currentApiKey || !selectedProviderId || !selectedModelId;
 
   const { messages, sendMessage, status, addToolResult } = useChat({
-    transport: {
-      sendMessages: async ({ messages: msgs, abortSignal }) => {
-        const response = await fetch("/api/chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            messages: msgs,
-            selectedProviderId,
-            selectedModelId,
-            apiKeys,
-            currentGeneratedCode,
-          }),
-          signal: abortSignal,
-        });
-        return response.body!;
-      },
-    },
+    transport: new DefaultChatTransport({
+      api: "/api/chat",
+      headers: { "Content-Type": "application/json" },
+      body: { selectedProviderId, selectedModelId, apiKeys, currentGeneratedCode },
+    }),
     tools: chatTools,
   });
 
