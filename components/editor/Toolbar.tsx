@@ -117,53 +117,37 @@ export function Toolbar({
           </div>
         )}
         
-        <TooltipProvider delay={0}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className="cursor-not-allowed inline-flex">
-                <Button 
-                  onClick={onExportAll} 
-                  disabled={!hasScreens}
-                  variant="outline"
-                  className="gap-2 h-9 px-3 border-[var(--border)] text-[var(--text-primary)] disabled:opacity-50 hover:bg-[var(--background)] hover:text-[var(--text-primary)] bg-transparent"
-                  style={{ pointerEvents: !hasScreens ? 'none' : 'auto' }}
-                >
-                  <Download className="w-4 h-4" />
-                  Export All
-                </Button>
-              </div>
-            </TooltipTrigger>
-            {!hasScreens && (
-              <TooltipContent>
-                <p>Generate your app flow first</p>
-              </TooltipContent>
-            )}
-          </Tooltip>
-        </TooltipProvider>
+        <div 
+          className="inline-flex cursor-not-allowed" 
+          title={!hasScreens ? "Generate your app flow first" : undefined}
+        >
+          <Button 
+            onClick={onExportAll} 
+            disabled={!hasScreens}
+            variant="outline"
+            className="gap-2 h-9 px-3 border-[var(--border)] text-[var(--text-primary)] disabled:opacity-50 hover:bg-[var(--background)] hover:text-[var(--text-primary)] bg-transparent"
+            style={{ pointerEvents: !hasScreens ? 'none' : 'auto' }}
+          >
+            <Download className="w-4 h-4" />
+            Export All
+          </Button>
+        </div>
 
-        <TooltipProvider delay={0}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className="cursor-not-allowed inline-flex">
-                <Button 
-                  onClick={onShare} 
-                  disabled={!hasScreens}
-                  variant="outline"
-                  className="gap-2 h-9 px-3 border-[var(--border)] text-[var(--text-primary)] disabled:opacity-50 hover:bg-[var(--background)] hover:text-[var(--text-primary)] bg-transparent"
-                  style={{ pointerEvents: !hasScreens ? 'none' : 'auto' }}
-                >
-                  <Share2 className="w-4 h-4" />
-                  Share
-                </Button>
-              </div>
-            </TooltipTrigger>
-            {!hasScreens && (
-              <TooltipContent>
-                <p>Generate your app flow first</p>
-              </TooltipContent>
-            )}
-          </Tooltip>
-        </TooltipProvider>
+        <div 
+          className="inline-flex cursor-not-allowed" 
+          title={!hasScreens ? "Generate your app flow first" : undefined}
+        >
+          <Button 
+            onClick={onShare} 
+            disabled={!hasScreens}
+            variant="outline"
+            className="gap-2 h-9 px-3 border-[var(--border)] text-[var(--text-primary)] disabled:opacity-50 hover:bg-[var(--background)] hover:text-[var(--text-primary)] bg-transparent"
+            style={{ pointerEvents: !hasScreens ? 'none' : 'auto' }}
+          >
+            <Share2 className="w-4 h-4" />
+            Share
+          </Button>
+        </div>
       </div>
     </div>
   );
