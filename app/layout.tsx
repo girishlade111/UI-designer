@@ -129,6 +129,7 @@ export default function RootLayout({
         <main style={{ paddingTop: '56px' }} className="min-h-screen">
           {children}
         </main>
+        <Toaster theme="dark" position="bottom-right" />
       </body>
     </html>
   );
