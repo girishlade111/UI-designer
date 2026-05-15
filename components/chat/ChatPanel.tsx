@@ -1,54 +1,64 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
+import { tool } from "ai";
+import { z } from "zod";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
 import { useAppStore } from "@/store/useAppStore";
-import { Settings, Square, Play, Download, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ModelSelector } from "@/components/ModelSelector";
 import { parseCodeBlock } from "@/lib/parse-code-block";
 
-const tools = {
-  askClarificationQuestion: {
+const chatTools = {
+  askClarificationQuestion: tool({
     description: "Use this if the user's prompt is too vague or lacks layout/color details.",
-    parameters: {
-      type: "object",
-      properties: {
-        question: { type: "string" },
-      },
-      required: ["question"],
-    },
-  },
-  generateReactComponent: {
+    inputSchema: z.object({
+      question: z.string().describe("The clarifying question to ask the user"),
+    }),
+  }),
+  generateReactComponent: tool({
     description: "Use this when the requirements are clear to generate the final code.",
-    parameters: {
-      type: "object",
-      properties: {
-        code: { type: "string" },
-      },
-      required: ["code"],
-    },
-  },
+    inputSchema: z.object({
+      code: z.string().describe("The complete React component code"),
+    }),
+  }),
 };
 
 export function ChatPanel() {
   const { selectedProviderId, selectedModelId, apiKeys, setIsSettingsOpen, currentGeneratedCode, setCurrentGeneratedCode, setIsGenerating } = useAppStore();
   const scrollRef = useRef<HTMLDivElement>(null);
   const processedToolCalls = useRef<Set<string>>(new Set());
+  const [input, setInput] = useState("");
 
   const currentApiKey = selectedProviderId ? apiKeys[selectedProviderId] || "" : "";
   const isDisabled = !currentApiKey || !selectedProviderId || !selectedModelId;
 
-  const { messages, input, handleInputChange, isLoading, addToolResult, append } = useChat({
-    api: "/api/chat",
-    body: { selectedProviderId, selectedModelId, apiKeys, currentGeneratedCode },
-    headers: { "Content-Type": "application/json" },
-    tools,
-    enabled: !isDisabled,
+  const { messages, sendMessage, status, addToolResult } = useChat({
+    transport: {
+      sendMessages: async ({ messages: msgs, abortSignal }) => {
+        const response = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            messages: msgs,
+            selectedProviderId,
+            selectedModelId,
+            apiKeys,
+            currentGeneratedCode,
+          }),
+          signal: abortSignal,
+        });
+        return response.body!;
+      },
+    },
+    tools: chatTools,
   });
+
+  const isLoading = status === "submitted" || status === "streaming";
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -60,30 +70,37 @@ export function ChatPanel() {
     setIsGenerating(isLoading);
   }, [isLoading, setIsGenerating]);
 
-  // Process tool calls
+  // Process tool calls from message parts
   useEffect(() => {
     const lastMessage = messages[messages.length - 1];
     if (!lastMessage || lastMessage.role !== "assistant") return;
 
-    const toolInvocations = lastMessage.toolInvocations;
-    if (!toolInvocations || toolInvocations.length === 0) return;
+    const toolParts = lastMessage.parts.filter(
+      (p) => p.type.startsWith("tool-")
+    ) as Array<{ type: string; toolCallId: string; toolName: string; input?: Record<string, unknown>; state?: string; output?: unknown }>;
 
-    toolInvocations.forEach((invocation) => {
-      if (processedToolCalls.current.has(invocation.toolCallId)) return;
-      processedToolCalls.current.add(invocation.toolCallId);
+    if (toolParts.length === 0) return;
 
-      const parsedArgs = typeof invocation.args === "string" ? JSON.parse(invocation.args) : invocation.args;
+    toolParts.forEach((part) => {
+      if (processedToolCalls.current.has(part.toolCallId)) return;
+      if (part.state !== "input-available") return;
+      processedToolCalls.current.add(part.toolCallId);
 
-      if (invocation.toolName === "askClarificationQuestion") {
+      const toolName = part.type.replace("tool-", "");
+      const args = part.input ?? {};
+
+      if (toolName === "askClarificationQuestion") {
         addToolResult({
-          toolCallId: invocation.toolCallId,
-          result: { question: parsedArgs.question },
+          tool: "askClarificationQuestion",
+          toolCallId: part.toolCallId,
+          output: { question: (args as { question?: string }).question ?? "" },
         });
-      } else if (invocation.toolName === "generateReactComponent") {
-        setCurrentGeneratedCode(parsedArgs.code);
+      } else if (toolName === "generateReactComponent") {
+        setCurrentGeneratedCode((args as { code?: string }).code ?? "");
         addToolResult({
-          toolCallId: invocation.toolCallId,
-          result: { success: true },
+          tool: "generateReactComponent",
+          toolCallId: part.toolCallId,
+          output: { success: true },
         });
       }
     });
@@ -96,7 +113,8 @@ export function ChatPanel() {
     const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant");
     if (!lastAssistant) return;
 
-    const text = typeof lastAssistant.content === "string" ? lastAssistant.content : "";
+    const textParts = lastAssistant.parts.filter((p) => p.type === "text") as Array<{ type: string; text: string }>;
+    const text = textParts.map((p) => p.text).join("");
     const code = parseCodeBlock(text);
     if (code) {
       setCurrentGeneratedCode(code);
@@ -107,25 +125,22 @@ export function ChatPanel() {
     if (!input.trim() && !imageDataUrl) return;
 
     const userText = input.trim();
-    const content: Array<{ type: string; text?: string; image?: string }> = [];
+    setInput("");
 
-    if (imageDataUrl) {
-      content.push({ type: "image", image: imageDataUrl });
-    }
-    if (userText) {
-      content.push({ type: "text", text: userText });
-    }
-
-    await append({
+    await sendMessage({
       role: "user",
-      content: content,
+      parts: [
+        ...(imageDataUrl
+          ? [{ type: "file" as const, mediaType: "image/png", url: imageDataUrl }]
+          : []),
+        ...(userText
+          ? [{ type: "text" as const, text: userText }]
+          : []),
+      ],
     });
   };
 
   const hasCode = currentGeneratedCode.length > 0;
-
-  const inputChangeFn = handleInputChange ?? (() => {});
-  const chatInput = input ?? "";
 
   return (
     <div className="h-full flex flex-col">
@@ -154,14 +169,39 @@ export function ChatPanel() {
               )}
             </div>
           ) : (
-            messages.map((msg) => (
-              <ChatMessage
-                key={msg.id}
-                role={msg.role as "user" | "assistant"}
-                content={msg.content}
-                toolInvocations={msg.toolInvocations}
-              />
-            ))
+            messages.map((msg) => {
+              const textParts = msg.parts.filter((p) => p.type === "text") as Array<{ type: string; text: string }>;
+              const fileParts = msg.parts.filter((p) => p.type === "file") as Array<{ type: string; url: string }>;
+              const toolParts = msg.parts.filter((p) => p.type.startsWith("tool-")) as Array<{
+                type: string;
+                toolCallId: string;
+                toolName: string;
+                input?: Record<string, unknown>;
+                state?: string;
+                output?: unknown;
+              }>;
+
+              const content = [
+                ...fileParts.map((p) => ({ type: "image" as const, image: p.url })),
+                ...textParts.map((p) => ({ type: "text" as const, text: p.text })),
+              ];
+
+              const toolInvocations = toolParts.map((p) => ({
+                toolCallId: p.toolCallId,
+                toolName: p.type.replace("tool-", ""),
+                args: p.input ?? {},
+                result: p.output,
+              }));
+
+              return (
+                <ChatMessage
+                  key={msg.id}
+                  role={msg.role as "user" | "assistant"}
+                  content={content}
+                  toolInvocations={toolInvocations.length > 0 ? toolInvocations : undefined}
+                />
+              );
+            })
           )}
           {isLoading && (
             <div className="flex gap-3 max-w-[85%] mr-auto">
@@ -178,8 +218,8 @@ export function ChatPanel() {
 
       <div className="p-4 border-t border-border">
         <ChatInput
-          input={chatInput}
-          onInputChange={inputChangeFn}
+          input={input}
+          onInputChange={(e) => setInput(e.target.value)}
           onSubmit={handleSubmitWithImage}
           disabled={isDisabled}
           isLoading={isLoading}
@@ -193,7 +233,6 @@ export function ChatPanel() {
           className="flex-1"
           disabled={isDisabled}
         >
-          <Square className="h-4 w-4 mr-2" />
           Stop
         </Button>
         <Button
@@ -202,7 +241,6 @@ export function ChatPanel() {
           className="flex-1"
           disabled={isDisabled || !hasCode}
         >
-          <Play className="h-4 w-4 mr-2" />
           Run
         </Button>
         <Button
@@ -211,7 +249,6 @@ export function ChatPanel() {
           className="flex-1"
           disabled={!hasCode}
         >
-          <Download className="h-4 w-4 mr-2" />
           Export
         </Button>
       </div>

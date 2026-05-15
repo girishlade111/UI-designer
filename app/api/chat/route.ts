@@ -1,7 +1,8 @@
 import { createOpenAI } from "@ai-sdk/openai";
-import { createGoogle } from "@ai-sdk/google";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createAnthropic } from "@ai-sdk/anthropic";
-import { streamText } from "ai";
+import { streamText, tool, convertToModelMessages } from "ai";
+import { z } from "zod";
 import { PROVIDERS } from "@/lib/models-registry";
 
 export const dynamic = "force-dynamic";
@@ -24,56 +25,20 @@ When the user provides an image:
 When the user's request is too vague or lacks details about layout, colors, or functionality:
 - Use the askClarificationQuestion tool to ask a focused question`;
 
-const tools = {
-  askClarificationQuestion: {
+const chatTools = {
+  askClarificationQuestion: tool({
     description: "Use this if the user's prompt is too vague or lacks layout/color details.",
-    parameters: {
-      type: "object",
-      properties: {
-        question: {
-          type: "string",
-          description: "The clarifying question to ask the user",
-        },
-      },
-      required: ["question"],
-    },
-  },
-  generateReactComponent: {
+    inputSchema: z.object({
+      question: z.string().describe("The clarifying question to ask the user"),
+    }),
+  }),
+  generateReactComponent: tool({
     description: "Use this when the requirements are clear to generate the final code.",
-    parameters: {
-      type: "object",
-      properties: {
-        code: {
-          type: "string",
-          description: "The complete React component code with Tailwind CSS",
-        },
-      },
-      required: ["code"],
-    },
-  },
+    inputSchema: z.object({
+      code: z.string().describe("The complete React component code"),
+    }),
+  }),
 };
-
-function transformMessageContent(content: string | Array<{ type: string; text?: string; image?: string }>) {
-  if (typeof content === "string") {
-    return content;
-  }
-
-  if (Array.isArray(content)) {
-    const parts: Array<{ type: string; text?: string; image_url?: { url: string } }> = [];
-    
-    content.forEach((part) => {
-      if (part.type === "text" && part.text) {
-        parts.push({ type: "text", text: part.text });
-      } else if (part.type === "image" && part.image) {
-        parts.push({ type: "image_url", image_url: { url: part.image } });
-      }
-    });
-    
-    return parts;
-  }
-  
-  return content;
-}
 
 const BASE_URLS: Record<string, string> = {
   openai: "https://api.openai.com/v1",
@@ -88,97 +53,90 @@ const BASE_URLS: Record<string, string> = {
   qwen: "https://dashscope.aliyuncs.com/compatible-mode/v1",
 };
 
-export async function POST(request: Request) {
+export async function POST(req: Request) {
   try {
-    const body = await request.json();
+    const body = await req.json();
     const { messages, selectedProviderId, selectedModelId, apiKeys, currentGeneratedCode } = body;
 
     if (!selectedProviderId) {
-      return Response.json(
-        { error: "Provider is required" },
-        { status: 400 }
-      );
+      return new Response(JSON.stringify({ error: "No provider selected" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
     if (!selectedModelId) {
-      return Response.json(
-        { error: "Model is required" },
-        { status: 400 }
-      );
-    }
-
-    const provider = PROVIDERS.find((p) => p.id === selectedProviderId);
-    if (!provider) {
-      return Response.json(
-        { error: "Invalid provider" },
-        { status: 400 }
-      );
+      return new Response(JSON.stringify({ error: "No model selected" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
     const apiKey = apiKeys?.[selectedProviderId];
     if (!apiKey) {
-      return Response.json(
-        { error: `API key is required for ${provider.name}` },
-        { status: 400 }
+      return new Response(
+        JSON.stringify({ error: `API key not found for provider: ${selectedProviderId}` }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    if (!messages || !Array.isArray(messages) || messages.length === 0) {
-      return Response.json(
-        { error: "Messages array is required" },
-        { status: 400 }
-      );
+    if (!messages || messages.length === 0) {
+      return new Response(JSON.stringify({ error: "No messages provided" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
-    const transformedMessages = messages.map((msg: { role: string; content: string | Array<{ type: string; text?: string; image?: string }> }) => ({
-      ...msg,
-      content: transformMessageContent(msg.content),
-    }));
+    const provider = PROVIDERS.find((p) => p.id === selectedProviderId);
+    if (!provider) {
+      return new Response(JSON.stringify({ error: "Invalid provider" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    const modelRecord = provider.models.find((m) => m.id === selectedModelId);
+    if (!modelRecord) {
+      return new Response(JSON.stringify({ error: "Invalid model for this provider" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
 
     let model;
-
     if (selectedProviderId === "gemini") {
-      model = createGoogle({
-        apiKey,
-      })(selectedModelId);
+      const google = createGoogleGenerativeAI({ apiKey });
+      model = google(selectedModelId);
     } else if (selectedProviderId === "anthropic") {
-      const anthropicKey = apiKey.startsWith("sk-ant-") ? apiKey : `Bearer ${apiKey}`;
-      model = createAnthropic({
-        apiKey: anthropicKey,
-      })(selectedModelId);
+      const anthropic = createAnthropic({ apiKey });
+      model = anthropic(selectedModelId);
     } else {
-      const baseURL = BASE_URLS[selectedProviderId];
-      if (!baseURL) {
-        return Response.json(
-          { error: `Unsupported provider: ${selectedProviderId}` },
-          { status: 400 }
-        );
-      }
-
-      const openai = createOpenAI({
-        baseURL,
-        apiKey,
-      });
-      model = openai(selectedModelId);
+      const baseUrl = BASE_URLS[selectedProviderId] || provider.baseUrl;
+      const openaiProvider = createOpenAI({ apiKey, baseURL: baseUrl });
+      model = openaiProvider(selectedModelId);
     }
 
     const activeSystemPrompt = currentGeneratedCode
       ? `${systemPrompt}\n\nThe user currently has a generated component. Here is the current code:\n\n\`\`\`tsx\n${currentGeneratedCode}\`\`\`\n\nModify this code based on the user's request. Use the generateReactComponent tool to output the updated code.`
       : systemPrompt;
 
+    const modelMessages = convertToModelMessages(messages);
+
     const result = streamText({
       model,
-      messages: transformedMessages,
       system: activeSystemPrompt,
-      tools,
+      messages: modelMessages,
+      tools: chatTools,
+      toolChoice: "auto",
+      maxSteps: 5,
     });
 
-    return result.toDataStreamResponse();
+    return result.toUIMessageStreamResponse();
   } catch (error) {
     console.error("Chat API error:", error);
-    return Response.json(
-      { error: error instanceof Error ? error.message : "Internal server error" },
-      { status: 500 }
+    return new Response(
+      JSON.stringify({ error: "An error occurred while processing your request" }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
 }
