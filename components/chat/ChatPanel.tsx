@@ -8,6 +8,7 @@ import { ChatInput } from "./ChatInput";
 import { useAppStore } from "@/store/useAppStore";
 import { Settings, Square, Play, Download, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ModelSelector } from "@/components/ModelSelector";
 
 const tools = {
   askClarificationQuestion: {
@@ -33,18 +34,19 @@ const tools = {
 };
 
 export function ChatPanel() {
-  const { apiKey, setIsSettingsOpen, currentGeneratedCode, setCurrentGeneratedCode, setIsGenerating } = useAppStore();
+  const { selectedProviderId, selectedModelId, apiKeys, setIsSettingsOpen, currentGeneratedCode, setCurrentGeneratedCode, setIsGenerating } = useAppStore();
   const scrollRef = useRef<HTMLDivElement>(null);
   const processedToolCalls = useRef<Set<string>>(new Set());
 
-  const isDisabled = !apiKey;
+  const currentApiKey = selectedProviderId ? apiKeys[selectedProviderId] || "" : "";
+  const isDisabled = !currentApiKey || !selectedProviderId || !selectedModelId;
 
   const { messages, input, handleInputChange, isLoading, addToolResult, append } = useChat({
     api: "/api/chat",
-    body: { apiKey },
+    body: { selectedProviderId, selectedModelId, apiKeys },
     headers: { "Content-Type": "application/json" },
     tools,
-    enabled: !!apiKey,
+    enabled: !isDisabled,
   });
 
   useEffect(() => {
@@ -119,14 +121,11 @@ export function ChatPanel() {
 
   return (
     <div className="h-full flex flex-col">
-      <div className="p-4 border-b border-border flex items-center justify-between">
-        <h2 className="font-semibold text-sm">Chat & Controls</h2>
-        {!apiKey && (
-          <Button variant="outline" size="sm" onClick={() => setIsSettingsOpen(true)}>
-            <Settings className="h-4 w-4 mr-2" />
-            Add API Key
-          </Button>
-        )}
+      <div className="p-4 border-b border-border space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="font-semibold text-sm">Chat & Controls</h2>
+        </div>
+        <ModelSelector />
       </div>
 
       <ScrollArea className="flex-1">
@@ -134,9 +133,11 @@ export function ChatPanel() {
           {messages.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-sm text-muted-foreground mb-2">
-                {isDisabled
-                  ? "Add your API key in Settings to start"
-                  : "Describe what you want to build, or upload a wireframe image"}
+                {!selectedProviderId
+                  ? "Select a provider and model above to start"
+                  : !currentApiKey
+                    ? "Enter your API key above to start"
+                    : "Describe what you want to build, or upload a wireframe image"}
               </p>
               {!isDisabled && (
                 <p className="text-xs text-muted-foreground">
