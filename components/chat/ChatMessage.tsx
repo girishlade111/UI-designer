@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { Bot, User, HelpCircle, Sparkles } from "lucide-react";
+import { Bot, User, HelpCircle } from "lucide-react";
 
 type ContentPart = { type: string; text?: string; image?: string };
 
