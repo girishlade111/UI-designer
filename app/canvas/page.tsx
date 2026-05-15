@@ -227,7 +227,10 @@ function CanvasContent() {
           />
         )}
 
-        <div className="flex-1 relative">
+        <div 
+          className="flex-1 relative transition-all duration-300 ease-out"
+          style={{ paddingRight: isChatPanelOpen && !isPrototypeMode ? '320px' : '0px' }}
+        >
           <InfiniteCanvas 
             screens={project?.screens || []}
             layoutType={project?.layoutType || 'mobile'}
@@ -318,6 +321,19 @@ function CanvasContent() {
       )}
 
       {/* {isPreviewMode && <PrototypePreview />} */}
+    </div>
+  );
+}
+
+export default function CanvasPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-[var(--text-muted)] bg-[var(--background)]">Loading...</div>}>
+      <CanvasContent />
+    </Suspense>
+  );
+}
+
+isPreviewMode && <PrototypePreview />} */}
     </div>
   );
 }
