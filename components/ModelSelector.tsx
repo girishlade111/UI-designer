@@ -95,7 +95,7 @@ export function ModelSelector() {
           )}
           <Select
             value={selectedModelId}
-            onValueChange={(value) => setModel(value)}
+            onValueChange={(value) => { if (value) setModel(value); }}
             disabled={!selectedProviderId}
           >
             <SelectTrigger>
