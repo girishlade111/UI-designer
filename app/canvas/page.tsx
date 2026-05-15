@@ -2,12 +2,14 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Project, LayoutType } from "@/types/project";
+import { Project, LayoutType, Screen } from "@/types/project";
 import { Toolbar } from "@/components/editor/Toolbar";
 import { InfiniteCanvas } from "@/components/canvas/InfiniteCanvas";
 import { ChatPanel } from "@/components/editor/ChatPanel";
 import { ConnectionsPanel } from "@/components/prototype/ConnectionsPanel";
 import { GenerationLoader } from "@/components/canvas/GenerationLoader";
+import { Button } from "@/components/ui/button";
+import { showToast, TOASTS } from "@/lib/toast";
 
 function CanvasContent() {
   const searchParams = useSearchParams();
@@ -20,6 +22,7 @@ function CanvasContent() {
   const [previewCurrentScreenId, setPreviewCurrentScreenId] = useState<string | null>(null);
   const [isChatPanelOpen, setIsChatPanelOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [loadingScreenId, setLoadingScreenId] = useState<string | null>(null);
   
@@ -48,7 +51,7 @@ function CanvasContent() {
         updatedAt: new Date().toISOString(),
       };
       setProject(newProject);
-      handleGenerate(); // Call generation immediately
+      handleGenerate(newProject); // Call generation immediately
       // Remove query params to avoid re-triggering on refresh
       router.replace('/canvas');
     } else {
@@ -57,6 +60,9 @@ function CanvasContent() {
         try {
           const parsed = JSON.parse(saved);
           setProject(parsed);
+          if (parsed.screens.length === 0) {
+            setIsGenerateModalOpen(true);
+          }
         } catch (e) {
           console.error("Failed to parse saved project");
         }
@@ -72,19 +78,63 @@ function CanvasContent() {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         });
+        setIsGenerateModalOpen(true);
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleGenerate = () => {
-    // TODO: built in Prompt 18
+  const handleGenerate = async (overrideProject?: Project) => {
+    const targetProject = overrideProject || project;
+    if (!targetProject) return;
+
     setIsGenerating(true);
-    setRevealedScreenNames(["Login", "Dashboard"]); // stub dummy data
-    setTimeout(() => {
+    setRevealedScreenNames([]);
+    setIsChatPanelOpen(false);
+    setIsGenerateModalOpen(false);
+
+    const timers: NodeJS.Timeout[] = [];
+    timers.push(setTimeout(() => setRevealedScreenNames(["Identifying your app screens…"]), 2000));
+    timers.push(setTimeout(() => setRevealedScreenNames(["Identifying your app screens…", "Login", "Dashboard", "Settings"]), 4000));
+
+    try {
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: targetProject.originalPrompt, layoutType: targetProject.layoutType }),
+      });
+
+      if (!res.ok) {
+        throw new Error(res.status === 503 ? "AI_UNAVAILABLE" : "GENERATION_FAILED");
+      }
+
+      const data = await res.json();
+      
+      const newScreens: Screen[] = Object.entries(data.screens || {}).map(([name, htmlContent], index) => {
+        const contentStr = htmlContent as string;
+        const isValid = contentStr.includes("<html") && contentStr.length > 200;
+        return {
+          id: crypto.randomUUID(),
+          name,
+          htmlContent: isValid ? contentStr : "",
+          displayOrder: index + 1,
+          editHistory: [],
+        };
+      });
+
+      const updatedProject = { ...targetProject, screens: newScreens, updatedAt: new Date().toISOString() };
+      setProject(updatedProject);
+      localStorage.setItem('ladedesign_project', JSON.stringify(updatedProject));
+    } catch (error) {
+      if (error instanceof Error && error.message === "AI_UNAVAILABLE") {
+        showToast.error(TOASTS.AI_UNAVAILABLE);
+      } else {
+        showToast.error(TOASTS.GENERATION_FAILED);
+      }
+    } finally {
+      timers.forEach(clearTimeout);
       setIsGenerating(false);
-      setRevealedScreenNames([]);
-    }, 2000);
+    }
   };
 
   const handleApplyEdit = (instruction: string) => {
@@ -158,7 +208,7 @@ function CanvasContent() {
         isPrototypeMode={isPrototypeMode}
         hasScreens={project ? project.screens.length > 0 : false}
         saveStatus={saveStatus}
-        onGenerate={handleGenerate}
+        onGenerate={() => setIsGenerateModalOpen(true)}
         onTogglePrototypeMode={handleTogglePrototypeMode}
         onExportAll={handleExportAll}
         onShare={handleShare}
@@ -207,6 +257,66 @@ function CanvasContent() {
         onCancel={() => setIsGenerating(false)}
       />
 
+      {isGenerateModalOpen && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-6 w-full max-w-[560px] shadow-2xl flex flex-col gap-4">
+            <h2 className="text-xl font-bold text-[var(--text-primary)]">Generate App Flow</h2>
+            
+            {project && project.screens.length > 0 && (
+              <p className="text-amber-500 text-sm font-medium">This will replace your current screens.</p>
+            )}
+
+            <div className="flex flex-col gap-2">
+              <label className="text-xs text-[var(--text-muted)] font-medium uppercase">App Description</label>
+              <textarea
+                value={project?.originalPrompt || ""}
+                onChange={(e) => setProject(prev => prev ? { ...prev, originalPrompt: e.target.value } : prev)}
+                className="w-full bg-[var(--background)] border border-[var(--border)] rounded-lg p-3 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)] resize-none"
+                rows={4}
+              />
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => setProject(prev => prev ? { ...prev, layoutType: "mobile" } : prev)}
+                className={`flex-1 py-2 px-4 rounded-lg border transition-colors ${
+                  project?.layoutType === "mobile" 
+                    ? "bg-[var(--accent)] border-[var(--accent)] text-white" 
+                    : "bg-[var(--background)] border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                }`}
+              >
+                📱 Mobile App
+              </button>
+              <button
+                onClick={() => setProject(prev => prev ? { ...prev, layoutType: "web" } : prev)}
+                className={`flex-1 py-2 px-4 rounded-lg border transition-colors ${
+                  project?.layoutType === "web" 
+                    ? "bg-[var(--accent)] border-[var(--accent)] text-white" 
+                    : "bg-[var(--background)] border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                }`}
+              >
+                🖥 Web App
+              </button>
+            </div>
+
+            <div className="flex gap-3 mt-2">
+              {project && project.screens.length > 0 && (
+                <Button variant="outline" onClick={() => setIsGenerateModalOpen(false)} className="flex-1 bg-transparent border-[var(--border)] hover:bg-[var(--background)] text-[var(--text-primary)]">
+                  Cancel
+                </Button>
+              )}
+              <Button 
+                onClick={() => handleGenerate()} 
+                disabled={!project?.originalPrompt.trim() || isGenerating}
+                className="flex-1 bg-[var(--accent)] text-white hover:bg-indigo-600 disabled:opacity-50"
+              >
+                Generate Flow &rarr;
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* {isPreviewMode && <PrototypePreview />} */}
     </div>
   );
@@ -219,3 +329,4 @@ export default function CanvasPage() {
     </Suspense>
   );
 }
+
