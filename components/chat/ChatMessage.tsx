@@ -73,6 +73,22 @@ export function ChatMessage({ role, content, toolInvocations, icon }: ChatMessag
               </div>
             );
           }
+          if (invocation.toolName === "generateReactComponent") {
+            const result = invocation.result as Record<string, unknown> | undefined;
+            if (result?.success) {
+              return (
+                <div
+                  key={invocation.toolCallId}
+                  className="rounded-2xl px-4 py-3 text-sm bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800"
+                >
+                  <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+                    <Sparkles className="h-4 w-4" />
+                    <span className="font-medium">Code generated!</span>
+                  </div>
+                </div>
+              );
+            }
+          }
           return null;
         })}
         {textContent && (
