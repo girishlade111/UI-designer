@@ -9,6 +9,7 @@ import { useAppStore } from "@/store/useAppStore";
 import { Settings, Square, Play, Download, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ModelSelector } from "@/components/ModelSelector";
+import { parseCodeBlock } from "@/lib/parse-code-block";
 
 const tools = {
   askClarificationQuestion: {
@@ -19,16 +20,6 @@ const tools = {
         question: { type: "string" },
       },
       required: ["question"],
-    },
-  },
-  generateReactComponent: {
-    description: "Use this when the requirements are clear to generate the final code.",
-    parameters: {
-      type: "object",
-      properties: {
-        code: { type: "string" },
-      },
-      required: ["code"],
     },
   },
 };
@@ -59,10 +50,11 @@ export function ChatPanel() {
     setIsGenerating(isLoading);
   }, [isLoading, setIsGenerating]);
 
+  // Auto-respond to clarification tool calls
   useEffect(() => {
     const lastMessage = messages[messages.length - 1];
     if (!lastMessage || lastMessage.role !== "assistant") return;
-    
+
     const toolInvocations = lastMessage.toolInvocations;
     if (!toolInvocations || toolInvocations.length === 0) return;
 
@@ -70,25 +62,29 @@ export function ChatPanel() {
       if (processedToolCalls.current.has(invocation.toolCallId)) return;
       processedToolCalls.current.add(invocation.toolCallId);
 
-      const { toolName, args } = invocation;
-      const parsedArgs = typeof args === "string" ? JSON.parse(args) : args;
-
-      if (toolName === "askClarificationQuestion") {
-        const question = parsedArgs.question as string;
+      if (invocation.toolName === "askClarificationQuestion") {
+        const parsedArgs = typeof invocation.args === "string" ? JSON.parse(invocation.args) : invocation.args;
         addToolResult({
           toolCallId: invocation.toolCallId,
-          result: { question },
-        });
-      } else if (toolName === "generateReactComponent") {
-        const code = parsedArgs.code as string;
-        setCurrentGeneratedCode(code);
-        addToolResult({
-          toolCallId: invocation.toolCallId,
-          result: { success: true },
+          result: { question: parsedArgs.question },
         });
       }
     });
-  }, [messages, addToolResult, setCurrentGeneratedCode]);
+  }, [messages, addToolResult]);
+
+  // Parse code blocks from completed assistant messages
+  useEffect(() => {
+    if (isLoading) return;
+
+    const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant");
+    if (!lastAssistant) return;
+
+    const text = typeof lastAssistant.content === "string" ? lastAssistant.content : "";
+    const code = parseCodeBlock(text);
+    if (code) {
+      setCurrentGeneratedCode(code);
+    }
+  }, [messages, isLoading, setCurrentGeneratedCode]);
 
   const handleSubmitWithImage = async (imageDataUrl?: string) => {
     if (!input.trim() && !imageDataUrl) return;
