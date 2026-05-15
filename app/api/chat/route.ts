@@ -91,7 +91,7 @@ const BASE_URLS: Record<string, string> = {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { messages, selectedProviderId, selectedModelId, apiKeys } = body;
+    const { messages, selectedProviderId, selectedModelId, apiKeys, currentGeneratedCode } = body;
 
     if (!selectedProviderId) {
       return Response.json(
@@ -162,10 +162,14 @@ export async function POST(request: Request) {
       model = openai(selectedModelId);
     }
 
+    const activeSystemPrompt = currentGeneratedCode
+      ? `${systemPrompt}\n\nThe user currently has a generated component. Here is the current code:\n\n\`\`\`tsx\n${currentGeneratedCode}\`\`\`\n\nModify this code based on the user's request. Use the generateReactComponent tool to output the updated code.`
+      : systemPrompt;
+
     const result = streamText({
       model,
       messages: transformedMessages,
-      system: systemPrompt,
+      system: activeSystemPrompt,
       tools,
     });
 
