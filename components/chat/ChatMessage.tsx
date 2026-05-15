@@ -73,25 +73,9 @@ export function ChatMessage({ role, content, toolInvocations, icon }: ChatMessag
               </div>
             );
           }
-          if (invocation.toolName === "generateReactComponent") {
-            const result = invocation.result as Record<string, unknown> | undefined;
-            if (result?.success) {
-              return (
-                <div
-                  key={invocation.toolCallId}
-                  className="rounded-2xl px-4 py-3 text-sm bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800"
-                >
-                  <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
-                    <Sparkles className="h-4 w-4" />
-                    <span className="font-medium">UI Updated!</span>
-                  </div>
-                </div>
-              );
-            }
-          }
           return null;
         })}
-        {textContent && !isUser && toolInvocations?.some(i => i.toolName === "generateReactComponent" && (i.result as Record<string, unknown>)?.success) ? null : (
+        {textContent && (
           <div
             className={cn(
               "rounded-2xl px-4 py-2.5 text-sm",
