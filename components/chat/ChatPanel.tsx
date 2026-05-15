@@ -60,7 +60,7 @@ export function ChatPanel() {
     setIsGenerating(isLoading);
   }, [isLoading, setIsGenerating]);
 
-  // Auto-respond to clarification tool calls
+  // Process tool calls
   useEffect(() => {
     const lastMessage = messages[messages.length - 1];
     if (!lastMessage || lastMessage.role !== "assistant") return;
@@ -72,15 +72,22 @@ export function ChatPanel() {
       if (processedToolCalls.current.has(invocation.toolCallId)) return;
       processedToolCalls.current.add(invocation.toolCallId);
 
+      const parsedArgs = typeof invocation.args === "string" ? JSON.parse(invocation.args) : invocation.args;
+
       if (invocation.toolName === "askClarificationQuestion") {
-        const parsedArgs = typeof invocation.args === "string" ? JSON.parse(invocation.args) : invocation.args;
         addToolResult({
           toolCallId: invocation.toolCallId,
           result: { question: parsedArgs.question },
         });
+      } else if (invocation.toolName === "generateReactComponent") {
+        setCurrentGeneratedCode(parsedArgs.code);
+        addToolResult({
+          toolCallId: invocation.toolCallId,
+          result: { success: true },
+        });
       }
     });
-  }, [messages, addToolResult]);
+  }, [messages, addToolResult, setCurrentGeneratedCode]);
 
   // Parse code blocks from completed assistant messages
   useEffect(() => {
